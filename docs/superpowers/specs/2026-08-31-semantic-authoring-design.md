@@ -25,8 +25,8 @@ developed. This spec covers only the first two sub-projects of five.
 
 | Phase | Sub-project | Notes |
 |---|---|---|
-| 3 | Scholar workspace — library, PDF reader/annotation, Capture Thought, journal, authoring studio | Prototype before engineering |
-| 4 | Public publishing — scholar profiles, publication pages, discovery | Depends on phase 3 |
+| 3 | Scholar workspace — library, PDF reader/annotation, Capture Thought, journal, authoring studio, **Life Map**, **Question Tracker** | Prototype before engineering |
+| 4 | Public publishing — scholar profiles, publication pages, discovery, **public testimonials** | Depends on phase 3 |
 | 5 | Scholar OS research layer — claim ledger, citation integrity, provider adapters, MCP server | Multi-quarter |
 
 Phase 5 corresponds to the "Scholar OS" brief. It is the same product — the research engine
@@ -160,6 +160,9 @@ automatically. Server-side deploy script: pull → install → build → PM2 rel
 Public routes are pre-rendered at build time. No database call, no session, no Node work on a
 cache hit.
 
+Publication pages (phase 4) additionally display approved responses and the author's
+endorsements, per §9.
+
 ### SEO and discovery
 
 - `schema.org` structured data: `Organization` now, `ScholarlyArticle` + `Person` in phase 4
@@ -274,6 +277,10 @@ brief; Research Pro and Institutional are defined but not exposed.
 | Dissertation workspace | — | — | ✓ |
 | Publication pipeline | — | — | ✓ |
 | Milestones & timeline | ✓ | ✓ | ✓ |
+| Question Tracker | ✓ | ✓ | ✓ |
+| Life Map | ✓ | ✓ | ✓ |
+| Scholar CRM (contacts) | 25 contacts | Unlimited | Unlimited |
+| Testimonial requests | 5 | Unlimited | Unlimited |
 | Export & portability | ✓ | ✓ | ✓ |
 
 Gating is by **feature flag resolved from the account's tier**, never hard-coded per user, so
@@ -284,29 +291,205 @@ features light up as they are built.
 
 ---
 
-## 8. CRM
+## 8. CRM — two levels
 
-The back office needs to manage both **leads** (waitlist, inbound) and **clients** (active
-accounts).
+There are two distinct CRMs, and conflating them would be a privacy failure.
+
+### 8.1 Platform CRM (God accounts)
+
+Manages the business: waitlist signups, inbound leads, and accounts.
 
 Entities: `Lead`, `LeadNote`, `LeadActivity`, `Client`. Modeled on the Core's proven
 `Lead`/`LeadNote`/`LeadDoc` shape so the concepts stay aligned.
 
-Capabilities:
-
-- List, filter, search leads by status, source, tier interest, date
+- List, filter, search by status, source, tier interest, date
 - Lead detail with timeline, notes, visitor-ID enrichment when consented
-- Status pipeline: `new → contacted → qualified → converted → archived`
-- Convert lead to account
-- CSV export
-- Attribution: which page, campaign, and referrer produced the lead
+- Pipeline: `new → contacted → qualified → converted → archived`
+- Convert lead to account; CSV export
+- Attribution: page, campaign, referrer
 
 Leads are written locally **and** forwarded to the Core CRM so they appear in the existing
 God-level view. Local is authoritative for this platform.
 
+### 8.2 Scholar CRM (per-scholar, private)
+
+Each scholar gets their own private relationship record — mentors, committee members,
+collaborators, testimonial givers, and future professional contacts. This is the scholar's
+data, not the platform's.
+
+Entities: `Contact`, `ContactNote`, `ContactActivity`, `TestimonialRequest`.
+
+- Contacts typed: mentor, advisor, committee, peer, collaborator, editor, other
+- Notes and interaction history, every entry timestamped
+- Follow-up reminders — explicitly supporting the long arc: a contact met in year one is
+  still there at graduation and beyond
+- Testimonials received land here automatically (§9)
+- Export with the rest of the scholar's data
+
+**Isolation rule:** God accounts administer the platform; they do **not** browse a scholar's
+private contacts. Scholar CRM records are excluded from God-level views by default. Any
+support access is explicit, consented, and written to the audit log.
+
 ---
 
-## 9. Core API integration
+## 9. Testimonials and endorsements
+
+A scholar can request, collect, and display endorsements of their work and their scholarship.
+
+### Flow
+
+```
+scholar composes request
+   → unique tokenized link (expiring, single-recipient)
+   → sent via Core (google_workspace — transactional, not Zapmail)
+   → recipient opens public form, no account required
+   → writes testimonial + optional rating
+   → scholar reviews it privately
+   → scholar chooses: publish · keep private · decline
+   → contact + testimonial land in the Scholar CRM (§8.2)
+```
+
+Nothing appears publicly without the scholar's explicit approval. Silence is not consent.
+
+### Two kinds, deliberately separated
+
+Conflating these is an academic-integrity problem, so the model keeps them distinct:
+
+| Type | Subject | Rating | Public display |
+|---|---|---|---|
+| **Endorsement** | the *scholar* — mentorship, collaboration, teaching | ★ 1–5 | Scholar profile |
+| **Response** | a *published work* — reader reaction, commentary | none | Publication page |
+
+**Design position:** star ratings apply to people-facing endorsements, not to scholarship.
+Rating a dissertation chapter 3/5 is not how scholarly evaluation works, and shipping it would
+cost credibility with exactly the academic audience the platform is courting — while also
+creating a harassment surface aimed at early-career researchers. Peer critique belongs in the
+review workflow (phase 3), which is permissioned and attributed.
+
+This is a recommendation, not a decision already made — see open question 2. If you want stars
+on publications too, the model supports it with one flag.
+
+### Integrity controls
+
+- Verified email required for the testimonial giver; the token binds it to one recipient
+- Attribution shown: name, role, institution — no anonymous public endorsements
+- Self-testimonial prevented (giver cannot equal subject)
+- Scholar may unpublish at any time; the record is retained, flagged withdrawn
+- Reporting path for abusive content; moderation queue for God accounts
+- Rate limiting on request sends to prevent the feature becoming a spam vector
+
+### Phasing
+
+| Piece | Phase |
+|---|---|
+| Request, collect, approve, store in Scholar CRM | **2 (now)** |
+| Display on public profile and publication pages | 4 |
+
+Collection ships early so testimonials accumulate before the public surface exists.
+
+---
+
+## 10. Life Map
+
+A private tool connecting lived experience to the scholar's driving questions. This is a
+differentiator — it operationalizes the brief's Humanity value ("honor the scholar behind the
+scholarship") and pairs with the somatic journal prompts.
+
+### Model
+
+A scholar records **life experiences** — formative events, turning points, encounters, losses,
+work, places — and links them to **questions** (§11). The link is the point: it makes visible
+*why* a scholar is asking what they are asking.
+
+Each experience carries: title, narrative, approximate date or period, significance, themes,
+optional emotional register, and privacy level. Approximate dating is first-class — "sometime
+in my twenties" must be expressible without inventing false precision.
+
+### Views
+
+- **Timeline** — experiences across a life
+- **Constellation** — experiences and questions as a connected graph, using the same visual
+  language as the semantic knowledge map
+- **Thread** — trace one question back through every experience feeding it
+
+### Privacy
+
+The most sensitive data in the platform. **Default `Only Me`.** Never surfaced to mentors,
+groups, or the public unless deliberately shared, item by item. Excluded from all God-level
+views. Never used for AI training. Included in export.
+
+Defined now, built in phase 3.
+
+---
+
+## 11. Question Tracker
+
+Research questions are the spine of the platform — they connect readings, claims, life
+experiences, chapters, and future work. They get first-class treatment rather than living as
+free text inside documents.
+
+### Model
+
+`Question { text, status, discipline, origin, parentId, createdAt, … }`
+
+- **Status:** `emerging → active → refining → answered → parked → retired`
+- **Origin:** where it came from — a reading, an annotation, a life experience, a conversation, a gap, or unprompted
+- **Hierarchy:** questions beget sub-questions; the tree is preserved
+- **Evolution:** questions are *versioned, never overwritten*. How a question changed over five
+  years is itself scholarly evidence, and the original phrasing is often the interesting part.
+- **Future bank:** anything not currently pursued is parked with a note, not deleted — the
+  explicit "add new ones for future research" requirement
+
+### Connections
+
+A question links to readings, annotations, claims, notes, life experiences, manuscript
+sections, dissertation chapters, and collaborators. In phase 5 it becomes the join point for
+the claim ledger.
+
+### Views
+
+Active questions dashboard · full tree · evolution history for a single question · the future
+bank · unanswered-questions report.
+
+Defined now, built in phase 3.
+
+---
+
+## 12. Timestamping and temporal integrity
+
+**Yes — timestamp everything.** This is not bookkeeping; it is the mechanism that makes the
+platform's central promise possible. "Intellectual provenance" and the scholar timeline are
+only real if the temporal record is complete and trustworthy.
+
+### Rules
+
+1. Every table carries `created_at` and `updated_at`. No exceptions.
+2. Every timestamp is stored in **UTC** with timezone, rendered in the viewer's locale.
+3. Records that represent thinking — questions, annotations, notes, claims, life experiences,
+   drafts, feedback — are **versioned, not overwritten**. Edits create a new version with its
+   own timestamp; prior versions remain retrievable.
+4. Meaningful actions append to an immutable event log: created, edited, linked, shared,
+   published, unpublished, approved, withdrawn.
+5. Externally sourced records additionally carry `retrieved_at` and `last_verified_at`, so
+   metadata age is always visible.
+6. AI-touched records carry the generation timestamp alongside `generated_by_ai` and `model`.
+7. Soft-delete with `deleted_at` for scholarly content. Hard delete is reserved for the
+   right-to-erasure path, which is honored completely.
+
+### Why it matters
+
+The core differentiator is preserving the lineage of thought — source → highlight →
+annotation → reflection → connection → question → argument → draft → feedback → revision →
+publication. That lineage *is* an ordered sequence of timestamped events. Without complete
+temporal data the feature cannot be built later; with it, the timeline, the question-evolution
+view, and the provenance export all fall out of data already captured.
+
+Cost is modest: a few columns and an append-only table. Retrofitting is impossible — you
+cannot recover timestamps you never wrote.
+
+---
+
+## 13. Core API integration
 
 The Core (`R0cketShip Core`, 137.220.56.129) is consumed as a remote authenticated API.
 Credentials live only in server environment variables, in a `server-only` module — importing it
@@ -341,7 +524,7 @@ waitlist form persists leads locally and queues notifications.
 
 ---
 
-## 10. Integration tabs
+## 14. Integration tabs
 
 A generic integration framework, so future keys are dropped in without a code change — per the
 brief's "just drop in the keys."
@@ -382,24 +565,32 @@ and only with scholar approval per §5 of the brief.
 
 ---
 
-## 11. Data model (phases 1–2)
+## 15. Data model (phases 1–2)
 
 ```
 User ── Account ── Tier
  │        │
  │        └── FeatureFlag (resolved, not stored per user)
- │
  ├── Session
  ├── PasswordReset
  └── AuditLog
 
-Lead ── LeadNote
- │   └── LeadActivity
- └── Client
+PLATFORM CRM (God)                SCHOLAR CRM (private, per-scholar)
+Lead ── LeadNote                  Contact ── ContactNote
+ │   └── LeadActivity              │      └── ContactActivity
+ └── Client                        └── TestimonialRequest ── Testimonial
+
+Question ── QuestionVersion       LifeExperience
+ └── QuestionLink ────────────────┘   (experience ↔ question connections)
 
 Integration (key, category, encrypted config, status)
 ConsentRecord (visitor consent, timestamp, policy version)
+EventLog (append-only: actor, entity, action, at)
 ```
+
+`Question`, `QuestionVersion`, `LifeExperience`, and `QuestionLink` are **defined and migrated
+now**, populated in phase 3. Creating the tables early costs nothing and keeps the phase-3
+workspace from needing a disruptive migration against live scholar data.
 
 ### Forward compatibility with Scholar OS
 
@@ -411,12 +602,14 @@ provenance graph. Two constraints on phases 1–2 so that work is not blocked:
 2. **AI provenance from day one.** Any AI-touched record carries `generated_by_ai`, `model`,
    `prompt_hash`, `human_verified`. The distinction between what a scholar wrote and what a
    machine suggested is foundational and cannot be retrofitted honestly.
+3. **Complete temporal record from day one** (§12). Timestamps and version history cannot be
+   reconstructed after the fact.
 
 `pgvector` is not installed in this phase but the database is provisioned to accept it.
 
 ---
 
-## 12. Security and privacy
+## 16. Security and privacy
 
 - Private by default. Nothing is public unless deliberately published.
 - RBAC: `god`, `admin`, `scholar`. God bypasses tier gates; scholars never see CRM.
@@ -436,7 +629,7 @@ visitor ID), CCPA, and an AI-use disclosure policy. Cheaper to architect than re
 
 ---
 
-## 13. Accessibility
+## 17. Accessibility
 
 Target **WCAG 2.1 AA** — required for university procurement, and a VPAT will be requested.
 
@@ -452,7 +645,7 @@ with a darkened variant for body copy. To be verified during implementation.
 
 ---
 
-## 14. Testing
+## 18. Testing
 
 | Layer | Tool | Coverage |
 |---|---|---|
@@ -467,7 +660,7 @@ Core API calls are mocked in tests. Per §46 of the brief, the system must prefe
 
 ---
 
-## 15. Operations
+## 19. Operations
 
 - PM2 process `semanticauthoring`, port 3100, restart on failure, boot persistence
 - nginx `proxy_pass`, existing Let's Encrypt cert (valid to 2026-11-29, auto-renew active)
@@ -479,30 +672,32 @@ Core API calls are mocked in tests. Per §46 of the brief, the system must prefe
 | Record | Value | Status |
 |---|---|---|
 | `@` A | 137.220.56.129 | ✅ done |
-| `www` A | 137.220.56.129 | ❌ **still points to dead `cname.blabaway.com`** |
+| `www` A | 137.220.56.129 | ❌ **still points to dead `cname.blabaway.com`** — same IP as apex |
 | `app` A (optional) | 137.220.56.129 | Only if the app moves to a subdomain |
 
 Certificate currently covers the apex only. Once `www` resolves, re-run certbot to add it.
 
 ---
 
-## 16. Open questions
+## 20. Open questions
 
 1. **Tier names and buckets** — §7 proposes Free / Scholar / Doctoral, mapping to the brief's
    five-tier future. Confirm the names and the feature split.
-2. **"Scholar Kastle"** — appeared in the brief without context. Product name, person, or
-   feature?
-3. **Turnstile keys** — needed for spam protection.
-4. **Core API key pair** — blocking for lead capture and email.
+2. **Star ratings on publications** — §9 recommends stars for scholar endorsements only, not for
+   published work, on academic-credibility and harassment grounds. Confirm or override.
+3. **Turnstile keys** — needed for spam protection on public forms.
+4. **Core API key pair** — blocking for lead capture and outbound email.
 5. **App subdomain** — keep the back office at `semanticauthoring.org/app`, or move to
    `app.semanticauthoring.org`? Subdomain keeps session cookies off the cacheable marketing
    domain.
 6. **Trademark** — "semantic authoring" is an established generic term in structured-docs
    (DITA). Does not block launch; affects defensibility and SEO.
 
+*Resolved:* "Scholar Kastle" — dropped, not used anywhere.
+
 ---
 
-## 17. Acceptance criteria
+## 21. Acceptance criteria
 
 Phase 1–2 is complete when:
 
@@ -517,12 +712,18 @@ Phase 1–2 is complete when:
 9. All three integration tabs render with accurate health status
 10. Tier gating is enforced server-side; a Free account cannot reach Doctoral features
 11. Password reset arrives via `google_workspace`, not Zapmail
-12. `pnpm build` and the full test suite pass
-13. Deploy-by-pull works end to end; PM2 survives reboot
+12. A scholar sends a testimonial request; the recipient submits without an account; the
+    testimonial arrives for approval and lands in that scholar's private CRM
+13. An unapproved testimonial is never publicly visible
+14. God accounts cannot browse a scholar's private contacts or Life Map
+15. Every table has `created_at` / `updated_at`; editing a question creates a new version and
+    preserves the original
+16. `pnpm build` and the full test suite pass
+17. Deploy-by-pull works end to end; PM2 survives reboot
 
 ---
 
-## 18. Next step
+## 22. Next step
 
 On approval, the implementation plan is produced with the `writing-plans` skill, then executed
 test-first.

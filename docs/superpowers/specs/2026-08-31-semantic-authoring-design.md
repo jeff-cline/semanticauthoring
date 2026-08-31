@@ -131,6 +131,11 @@ Approach A: one standalone Next.js application; public routes statically generat
 | Deploy path | `/var/www/semanticauthoring` |
 | nginx | `proxy_pass` to 127.0.0.1:3100, replacing the interim static vhost |
 
+**No `sub_filter` tracking injection in the vhost.** The other sites on this box inject the
+quuik script at the proxy layer, unconditionally. That would bypass the consent gate in §5, so
+this vhost deliberately omits it — the application loads tracking only after the visitor
+accepts.
+
 **Standalone means standalone.** Own repo, own database, own process. The Core is consumed as
 a remote API only. No shared schema, no shared process, no host-based tenancy.
 
@@ -241,7 +246,12 @@ navigating directly.
 ### Credential handling
 
 The temporary password is supplied at deploy time via `SEED_GOD_TEMP_PASSWORD` in the server
-environment. **It is never committed to the repo.** Passwords are stored as argon2id hashes.
+environment. **It is never committed to the repo.**
+
+Passwords are hashed with **scrypt from `node:crypto`**, not argon2id as originally specified.
+argon2 requires native compilation, which risks a mismatch between the build and runtime
+environments; scrypt is memory-hard, built into Node, and adds no dependency. Same rationale
+led to plain SQL over an ORM with platform-specific binaries.
 
 **Recommendation on record:** one-time expiring invite links, unique per account, are safer
 than a shared temporary password — a shared credential defeats the audit trail and the value

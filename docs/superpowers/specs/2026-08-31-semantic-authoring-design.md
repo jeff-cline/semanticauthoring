@@ -281,6 +281,7 @@ brief; Research Pro and Institutional are defined but not exposed.
 | Life Map | ✓ | ✓ | ✓ |
 | Scholar CRM (contacts) | 25 contacts | Unlimited | Unlimited |
 | Testimonial requests | 5 | Unlimited | Unlimited |
+| Subscribers & notifications | — | ✓ | ✓ |
 | Export & portability | ✓ | ✓ | ✓ |
 
 Gating is by **feature flag resolved from the account's tier**, never hard-coded per user, so
@@ -317,13 +318,14 @@ Each scholar gets their own private relationship record — mentors, committee m
 collaborators, testimonial givers, and future professional contacts. This is the scholar's
 data, not the platform's.
 
-Entities: `Contact`, `ContactNote`, `ContactActivity`, `TestimonialRequest`.
+Entities: `Contact`, `ContactNote`, `ContactActivity`, `TestimonialRequest`, `Subscriber`.
 
 - Contacts typed: mentor, advisor, committee, peer, collaborator, editor, other
 - Notes and interaction history, every entry timestamped
 - Follow-up reminders — explicitly supporting the long arc: a contact met in year one is
   still there at graduation and beyond
 - Testimonials received land here automatically (§9)
+- Readers who subscribe to this scholar land here as `visitor`-sourced subscribers (§10)
 - Export with the rest of the scholar's data
 
 **Isolation rule:** God accounts administer the platform; they do **not** browse a scholar's
@@ -343,7 +345,7 @@ scholar composes request
    → unique tokenized link (expiring, single-recipient)
    → sent via Core (google_workspace — transactional, not Zapmail)
    → recipient opens public form, no account required
-   → writes testimonial + optional rating
+   → writes testimonial (text only)
    → scholar reviews it privately
    → scholar chooses: publish · keep private · decline
    → contact + testimonial land in the Scholar CRM (§8.2)
@@ -351,23 +353,26 @@ scholar composes request
 
 Nothing appears publicly without the scholar's explicit approval. Silence is not consent.
 
-### Two kinds, deliberately separated
+### Text only — no ratings
 
-Conflating these is an academic-integrity problem, so the model keeps them distinct:
+**Decision: testimonials are written text. There are no star ratings anywhere on the
+platform.**
 
-| Type | Subject | Rating | Public display |
-|---|---|---|---|
-| **Endorsement** | the *scholar* — mentorship, collaboration, teaching | ★ 1–5 | Scholar profile |
-| **Response** | a *published work* — reader reaction, commentary | none | Publication page |
+Numeric scoring of scholarship is not how academic evaluation works, and a five-star widget
+would cost credibility with the exact audience the platform is courting while creating a
+harassment surface aimed at early-career researchers. Written words also carry more weight:
+a paragraph from a dissertation chair is worth more than any number.
 
-**Design position:** star ratings apply to people-facing endorsements, not to scholarship.
-Rating a dissertation chapter 3/5 is not how scholarly evaluation works, and shipping it would
-cost credibility with exactly the academic audience the platform is courting — while also
-creating a harassment surface aimed at early-career researchers. Peer critique belongs in the
-review workflow (phase 3), which is permissioned and attributed.
+Two kinds are still modeled distinctly, because conflating them is an academic-integrity
+problem:
 
-This is a recommendation, not a decision already made — see open question 2. If you want stars
-on publications too, the model supports it with one flag.
+| Type | Subject | Public display |
+|---|---|---|
+| **Endorsement** | the *scholar* — mentorship, collaboration, teaching | Scholar profile |
+| **Response** | a *published work* — reader reaction, commentary | Publication page |
+
+Peer critique proper belongs in the review workflow (phase 3), which is permissioned and
+attributed.
 
 ### Integrity controls
 
@@ -389,7 +394,81 @@ Collection ships early so testimonials accumulate before the public surface exis
 
 ---
 
-## 10. Life Map
+## 10. Audience and subscriptions
+
+Readers can subscribe to an individual scholar to be notified when that scholar publishes.
+This is the Substack-style relationship the brief calls for, and it is the mechanism that turns
+one-time readers into a durable audience.
+
+### Flow
+
+```
+visitor reads a public publication or scholar profile
+   → "Subscribe to <Scholar>" — name + email
+   → double opt-in confirmation email (google_workspace, transactional)
+   → visitor confirms
+   → Subscriber record created, owned by that scholar
+   → appears in the scholar's own CRM dashboard (§8.2), source: visitor
+   → scholar publishes new work → subscribers notified
+```
+
+### Model
+
+`Subscriber { scholarId, name, email, status, source, confirmedAt, unsubscribedAt, … }`
+
+- **Per-scholar, not platform-wide.** Subscribing to one scholar does not subscribe you to
+  another, and does not create a platform account.
+- **Status:** `pending → confirmed → unsubscribed → bounced`
+- **Source** records where the subscription originated — profile, publication, or marketing
+  page. A reader captured this way is a *visitor*, distinct from a `Contact` the scholar
+  entered themselves.
+- Subscribers surface in the scholar's CRM alongside contacts and testimonial givers, so one
+  dashboard shows the whole relationship picture.
+
+### Compliance — not optional
+
+Building a mailing list creates legal obligations under CAN-SPAM, GDPR, and CASL:
+
+1. **Double opt-in.** No email is sent to an address until it is confirmed. This is also the
+   single biggest protection for deliverability.
+2. **One-click unsubscribe** in every notification, honored immediately.
+3. **Consent record** — timestamp, IP, and the exact page the subscription came from, retained
+   as proof of consent.
+4. **Bounce and complaint handling**; repeated hard bounces auto-suppress.
+5. **Data ownership.** Subscribers belong to the scholar. Exportable with the rest of their
+   data, per §24 of the brief — scholars are never locked in.
+6. Subscriber email addresses are **never** exposed to other scholars or to God-level browsing.
+
+### Email routing
+
+This is a third category beyond the split in §14, and the Core already has the right pipe for
+it — the manifest lists Klaviyo as *"opted-in marketing automation."*
+
+| Message | Provider |
+|---|---|
+| Subscription confirmation (double opt-in) | `google_workspace` — transactional |
+| New-publication notification to subscribers | Klaviyo — opted-in marketing |
+| Platform announcements | `zapmail` |
+
+Sending opted-in subscriber broadcasts through cold-email infrastructure would poison
+deliverability for everyone on the shared mailboxes.
+
+### Notification preferences
+
+Subscribers choose immediate, weekly digest, or monthly digest. Scholars see subscriber count
+and growth, never a purchased-list-style export of anyone else's audience.
+
+### Phasing
+
+| Piece | Phase |
+|---|---|
+| `Subscriber` model, CRM surface, confirmation flow | **2 (now)** |
+| Public subscribe widget on profiles and publications | 4 |
+| Digest scheduling and preference management | 4 |
+
+---
+
+## 11. Life Map
 
 A private tool connecting lived experience to the scholar's driving questions. This is a
 differentiator — it operationalizes the brief's Humanity value ("honor the scholar behind the
@@ -422,7 +501,7 @@ Defined now, built in phase 3.
 
 ---
 
-## 11. Question Tracker
+## 12. Question Tracker
 
 Research questions are the spine of the platform — they connect readings, claims, life
 experiences, chapters, and future work. They get first-class treatment rather than living as
@@ -455,7 +534,7 @@ Defined now, built in phase 3.
 
 ---
 
-## 12. Timestamping and temporal integrity
+## 13. Timestamping and temporal integrity
 
 **Yes — timestamp everything.** This is not bookkeeping; it is the mechanism that makes the
 platform's central promise possible. "Intellectual provenance" and the scholar timeline are
@@ -489,7 +568,7 @@ cannot recover timestamps you never wrote.
 
 ---
 
-## 13. Core API integration
+## 14. Core API integration
 
 The Core (`R0cketShip Core`, 137.220.56.129) is consumed as a remote authenticated API.
 Credentials live only in server environment variables, in a `server-only` module — importing it
@@ -524,7 +603,7 @@ waitlist form persists leads locally and queues notifications.
 
 ---
 
-## 14. Integration tabs
+## 15. Integration tabs
 
 A generic integration framework, so future keys are dropped in without a code change — per the
 brief's "just drop in the keys."
@@ -565,7 +644,7 @@ and only with scholar approval per §5 of the brief.
 
 ---
 
-## 15. Data model (phases 1–2)
+## 16. Data model (phases 1–2)
 
 ```
 User ── Account ── Tier
@@ -578,7 +657,8 @@ User ── Account ── Tier
 PLATFORM CRM (God)                SCHOLAR CRM (private, per-scholar)
 Lead ── LeadNote                  Contact ── ContactNote
  │   └── LeadActivity              │      └── ContactActivity
- └── Client                        └── TestimonialRequest ── Testimonial
+ └── Client                        ├── TestimonialRequest ── Testimonial
+                                   └── Subscriber ── SubscriptionConsent
 
 Question ── QuestionVersion       LifeExperience
  └── QuestionLink ────────────────┘   (experience ↔ question connections)
@@ -609,7 +689,7 @@ provenance graph. Two constraints on phases 1–2 so that work is not blocked:
 
 ---
 
-## 16. Security and privacy
+## 17. Security and privacy
 
 - Private by default. Nothing is public unless deliberately published.
 - RBAC: `god`, `admin`, `scholar`. God bypasses tier gates; scholars never see CRM.
@@ -629,7 +709,7 @@ visitor ID), CCPA, and an AI-use disclosure policy. Cheaper to architect than re
 
 ---
 
-## 17. Accessibility
+## 18. Accessibility
 
 Target **WCAG 2.1 AA** — required for university procurement, and a VPAT will be requested.
 
@@ -645,7 +725,7 @@ with a darkened variant for body copy. To be verified during implementation.
 
 ---
 
-## 18. Testing
+## 19. Testing
 
 | Layer | Tool | Coverage |
 |---|---|---|
@@ -660,7 +740,7 @@ Core API calls are mocked in tests. Per §46 of the brief, the system must prefe
 
 ---
 
-## 19. Operations
+## 20. Operations
 
 - PM2 process `semanticauthoring`, port 3100, restart on failure, boot persistence
 - nginx `proxy_pass`, existing Let's Encrypt cert (valid to 2026-11-29, auto-renew active)
@@ -679,14 +759,14 @@ Certificate currently covers the apex only. Once `www` resolves, re-run certbot 
 
 ---
 
-## 20. Open questions
+## 21. Open questions
 
 1. **Tier names and buckets** — §7 proposes Free / Scholar / Doctoral, mapping to the brief's
    five-tier future. Confirm the names and the feature split.
-2. **Star ratings on publications** — §9 recommends stars for scholar endorsements only, not for
-   published work, on academic-credibility and harassment grounds. Confirm or override.
-3. **Turnstile keys** — needed for spam protection on public forms.
-4. **Core API key pair** — blocking for lead capture and outbound email.
+2. **Turnstile keys** — needed for spam protection on public forms.
+3. **Core API key pair** — blocking for lead capture and outbound email.
+4. **Klaviyo access** — needed for subscriber broadcasts (§10). Listed as a Core integration;
+   confirm it is connected and that this platform may use it.
 5. **App subdomain** — keep the back office at `semanticauthoring.org/app`, or move to
    `app.semanticauthoring.org`? Subdomain keeps session cookies off the cacheable marketing
    domain.
@@ -694,10 +774,11 @@ Certificate currently covers the apex only. Once `www` resolves, re-run certbot 
    (DITA). Does not block launch; affects defensibility and SEO.
 
 *Resolved:* "Scholar Kastle" — dropped, not used anywhere.
+*Resolved:* star ratings — text reviews only, no stars anywhere (§9).
 
 ---
 
-## 21. Acceptance criteria
+## 22. Acceptance criteria
 
 Phase 1–2 is complete when:
 
@@ -718,12 +799,17 @@ Phase 1–2 is complete when:
 14. God accounts cannot browse a scholar's private contacts or Life Map
 15. Every table has `created_at` / `updated_at`; editing a question creates a new version and
     preserves the original
-16. `pnpm build` and the full test suite pass
-17. Deploy-by-pull works end to end; PM2 survives reboot
+16. A reader subscribes with name and email, receives a confirmation, and only becomes an
+    active subscriber after confirming
+17. The subscriber appears in that scholar's CRM as a visitor-sourced record
+18. Unsubscribe works from any notification and is honored immediately
+19. No star-rating UI exists anywhere in the product
+20. `pnpm build` and the full test suite pass
+21. Deploy-by-pull works end to end; PM2 survives reboot
 
 ---
 
-## 22. Next step
+## 23. Next step
 
 On approval, the implementation plan is produced with the `writing-plans` skill, then executed
 test-first.

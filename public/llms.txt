@@ -1,0 +1,44 @@
+# Semantic Authoring
+
+> The operating system for scholarly thinking. A platform where doctoral scholars
+> develop research privately and publish it publicly — connecting what they read,
+> what they think, and what they contribute.
+
+Semantic Authoring has two connected environments. A private workspace holds a
+scholar's research library, annotations, reflections, daily journal, research
+questions, drafts, and mentor feedback. A public platform holds the finished work
+they choose to publish, on a scholar profile readers can follow and subscribe to.
+
+The core idea is intellectual provenance: preserving the traceable lineage from
+source to highlight, annotation, reflection, connection, research question,
+argument, draft, feedback, revision, and publication.
+
+## Principles
+
+- Private by default. Nothing is public unless the scholar deliberately publishes it.
+- AI is a research assistant, never a ghostwriter.
+- Never fabricate a citation, DOI, page number, finding, or statistic.
+- Always distinguish what the scholar read, what AI suggested, what the scholar
+  thought, and what the scholar authored.
+- Prefer "unable to verify" over a confident guess.
+
+## Answers
+
+- [What is semantic authoring?](https://semanticauthoring.org/answers/what-is-semantic-authoring): Writing while preserving meaning-level connections between sources, ideas, and claims.
+- [What is intellectual provenance?](https://semanticauthoring.org/answers/intellectual-provenance): The traceable lineage of an idea from source to publication.
+- [How should you track research questions?](https://semanticauthoring.org/answers/how-to-track-research-questions): Version questions rather than overwriting them; preserve every earlier phrasing.
+- [How do you organize dissertation research?](https://semanticauthoring.org/answers/how-to-organize-dissertation-research): Organize by question rather than by folder.
+- [Summarizing vs synthesizing literature](https://semanticauthoring.org/answers/literature-review-methods): A summary lists authors; a synthesis uses authors as evidence for ideas.
+- [How do you prepare for a dissertation defense?](https://semanticauthoring.org/answers/how-to-prepare-dissertation-defense): Audit each claim for supporting and contradicting evidence before the committee does.
+- [Should personal experience inform research questions?](https://semanticauthoring.org/answers/connecting-life-experience-to-research): Yes — naming the origin is a rigor practice, not a compromise.
+- [How should scholars use AI with integrity?](https://semanticauthoring.org/answers/ai-and-academic-integrity): Use AI to find, compare, and organize — never to author.
+- [Building a sustainable writing practice](https://semanticauthoring.org/answers/scholarly-writing-practice): Small repeatable sessions beat rare heroic days.
+
+## Pages
+
+- [Home](https://semanticauthoring.org/)
+- [The scholarly journey](https://semanticauthoring.org/journey): Read, Connect, Synthesize, Author, Review, Publish, Celebrate.
+- [Mission and values](https://semanticauthoring.org/mission)
+- [Pricing](https://semanticauthoring.org/pricing): Three tiers — Free, Scholar, Doctoral. All currently free.
+- [About](https://semanticauthoring.org/about)
+- [Privacy](https://semanticauthoring.org/privacy)

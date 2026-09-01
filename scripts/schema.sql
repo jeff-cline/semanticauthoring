@@ -200,3 +200,150 @@ CREATE TABLE IF NOT EXISTS event_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS event_log_entity_idx ON event_log(entity, entity_id);
+
+-- ═══ PHASE 3 — the scholar workspace ════════════════════════════════════════
+
+-- READ: research library
+CREATE TABLE IF NOT EXISTS sources (
+  id            SERIAL PRIMARY KEY,
+  owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  kind          TEXT NOT NULL DEFAULT 'article',
+    -- article|book|chapter|website|lecture|report|video|podcast|course_doc|note
+  authors       TEXT NOT NULL DEFAULT '',
+  year          TEXT NOT NULL DEFAULT '',
+  publication   TEXT NOT NULL DEFAULT '',
+  doi           TEXT NOT NULL DEFAULT '',
+  url           TEXT NOT NULL DEFAULT '',
+  tags          TEXT NOT NULL DEFAULT '',
+  notes         TEXT NOT NULL DEFAULT '',
+  file_path     TEXT NOT NULL DEFAULT '',   -- private storage, never web-served directly
+  file_name     TEXT NOT NULL DEFAULT '',
+  file_size     INTEGER NOT NULL DEFAULT 0,
+  read_status   TEXT NOT NULL DEFAULT 'unread',  -- unread|reading|read
+  -- provenance for anything sourced externally (spec §16)
+  provider      TEXT NOT NULL DEFAULT '',
+  provider_id   TEXT NOT NULL DEFAULT '',
+  source_url    TEXT NOT NULL DEFAULT '',
+  retrieved_at  TIMESTAMPTZ,
+  confidence    TEXT NOT NULL DEFAULT '',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS sources_owner_idx ON sources(owner_id);
+
+-- Annotations: a highlight or note anchored in a source
+CREATE TABLE IF NOT EXISTS annotations (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source_id    INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+  page         TEXT NOT NULL DEFAULT '',
+  quote        TEXT NOT NULL DEFAULT '',
+  kind         TEXT NOT NULL DEFAULT 'general',
+    -- general|literature|methodological|critical|question|idea|quotation
+    -- |finding|limitation|counterargument|definition|future_research
+  evidence     TEXT NOT NULL DEFAULT '',
+    -- supports|challenges|contradicts|expands|contextualizes
+  -- the four reflection prompts
+  says         TEXT NOT NULL DEFAULT '',   -- What does this source say?
+  think        TEXT NOT NULL DEFAULT '',   -- What do I think?
+  matters      TEXT NOT NULL DEFAULT '',   -- Why does this matter?
+  connects     TEXT NOT NULL DEFAULT '',   -- What does this connect to?
+  tags         TEXT NOT NULL DEFAULT '',
+  generated_by_ai BOOLEAN NOT NULL DEFAULT FALSE,
+  ai_model     TEXT NOT NULL DEFAULT '',
+  human_verified BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS annotations_owner_idx ON annotations(owner_id);
+CREATE INDEX IF NOT EXISTS annotations_source_idx ON annotations(source_id);
+
+-- Capture Thought: the fast inbox
+CREATE TABLE IF NOT EXISTS captures (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body        TEXT NOT NULL,
+  kind        TEXT NOT NULL DEFAULT 'idea', -- idea|quote|question|reflection|insight
+  processed   BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS captures_owner_idx ON captures(owner_id);
+
+-- Daily scholar journal (intellectual + somatic + intention + reflection)
+CREATE TABLE IF NOT EXISTS journal_entries (
+  id             SERIAL PRIMARY KEY,
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  entry_date     DATE NOT NULL DEFAULT CURRENT_DATE,
+  intellectual_prompt TEXT NOT NULL DEFAULT '',
+  intellectual   TEXT NOT NULL DEFAULT '',
+  somatic_prompt TEXT NOT NULL DEFAULT '',
+  somatic        TEXT NOT NULL DEFAULT '',
+  intention      TEXT NOT NULL DEFAULT '',
+  reflection     TEXT NOT NULL DEFAULT '',
+  energy         INTEGER, focus INTEGER, stress INTEGER,
+  curiosity      INTEGER, confidence INTEGER, capacity INTEGER,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, entry_date)
+);
+CREATE INDEX IF NOT EXISTS journal_owner_idx ON journal_entries(owner_id);
+
+-- AUTHOR: the writing studio
+CREATE TABLE IF NOT EXISTS documents (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  kind        TEXT NOT NULL DEFAULT 'essay',
+    -- course_paper|discussion|lit_review|proposal|chapter|manuscript
+    -- |abstract|working_paper|research_note|essay
+  body        TEXT NOT NULL DEFAULT '',
+  status      TEXT NOT NULL DEFAULT 'draft', -- draft|in_review|revising|final
+  word_count  INTEGER NOT NULL DEFAULT 0,
+  visibility  TEXT NOT NULL DEFAULT 'only_me',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS documents_owner_idx ON documents(owner_id);
+
+-- Version-don't-overwrite for writing (spec §13)
+CREATE TABLE IF NOT EXISTS document_versions (
+  id          SERIAL PRIMARY KEY,
+  document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  body        TEXT NOT NULL,
+  word_count  INTEGER NOT NULL DEFAULT 0,
+  note        TEXT NOT NULL DEFAULT '',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS docversions_doc_idx ON document_versions(document_id);
+
+-- CONNECT: general semantic links between any two workspace entities
+CREATE TABLE IF NOT EXISTS connections (
+  id         SERIAL PRIMARY KEY,
+  owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  from_type  TEXT NOT NULL,   -- source|annotation|question|document|capture|experience
+  from_id    INTEGER NOT NULL,
+  to_type    TEXT NOT NULL,
+  to_id      INTEGER NOT NULL,
+  relation   TEXT NOT NULL DEFAULT 'relates_to',
+  note       TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, from_type, from_id, to_type, to_id, relation)
+);
+CREATE INDEX IF NOT EXISTS connections_owner_idx ON connections(owner_id);
+
+-- CELEBRATE: milestones and the scholar timeline
+CREATE TABLE IF NOT EXISTS milestones (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key         TEXT NOT NULL DEFAULT '',      -- '' for custom milestones
+  title       TEXT NOT NULL,
+  detail      TEXT NOT NULL DEFAULT '',
+  reflection  TEXT NOT NULL DEFAULT '',
+  visibility  TEXT NOT NULL DEFAULT 'only_me',
+  achieved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS milestones_owner_idx ON milestones(owner_id);

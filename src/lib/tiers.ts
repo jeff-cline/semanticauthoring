@@ -13,7 +13,7 @@ export type Feature =
   | "profile" | "library" | "annotations" | "capture" | "journal" | "authoring"
   | "publishing" | "semantic" | "groups" | "review" | "courses" | "dissertation"
   | "pipeline" | "milestones" | "questions" | "lifemap" | "scholarCrm"
-  | "testimonials" | "subscribers" | "export";
+  | "testimonials" | "subscribers" | "export" | "timeline";
 
 const MATRIX: Record<Feature, Tier[]> = {
   profile:      ["free", "scholar", "doctoral"],
@@ -29,6 +29,7 @@ const MATRIX: Record<Feature, Tier[]> = {
   testimonials: ["free", "scholar", "doctoral"],
   export:       ["free", "scholar", "doctoral"],
   semantic:     ["free", "scholar", "doctoral"],
+  timeline:     ["free", "scholar", "doctoral"],
   groups:       ["free", "scholar", "doctoral"],
   publishing:   ["scholar", "doctoral"],
   subscribers:  ["scholar", "doctoral"],

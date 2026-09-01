@@ -89,3 +89,34 @@ export function testimonialRequestEmail(
        Nothing you write is published unless ${esc(fromName)} approves it first.</p>`,
   );
 }
+
+export function welcomeEmail(to: string, name: string, tier: string) {
+  const base = process.env.SITE_URL ?? "https://semanticauthoring.org";
+  return sendTransactional(
+    to,
+    "Welcome to Semantic Authoring",
+    `Welcome, ${esc(name)}`,
+    `<p>Your scholar workspace is open. You're on the <strong>${esc(tier)}</strong> tier —
+        free, with no card and no trial clock.</p>
+     <p style="color:#41506a">A good first move is to write down the question you're
+        actually trying to answer. Everything else in the workspace hangs off your
+        questions — readings, notes, connections, and eventually your writing.</p>
+     <p style="margin:26px 0">
+       <a href="${base}/app/questions" style="background:#D96C59;color:#fff;text-decoration:none;
+          padding:12px 22px;border-radius:8px;display:inline-block">Start with a question</a>
+     </p>
+     <p style="color:#61708a;font-size:13px">
+       Your research, notes, journal, and Life Map are private by default. Nothing becomes
+       public unless you deliberately publish it, and you can export everything at any time.</p>`,
+  );
+}
+
+export function milestoneEmail(to: string, name: string, title: string) {
+  return sendTransactional(
+    to, `Milestone reached — ${title}`, "You did it.",
+    `<p>${esc(name)}, you just recorded a milestone:</p>
+     <p style="font-family:Georgia,serif;font-size:20px;color:#C6A15B;margin:18px 0">${esc(title)}</p>
+     <p style="color:#41506a">Scholarship takes years. This is part of your original
+        contribution to your field, and it deserved more than passing unnoticed.</p>`,
+  );
+}

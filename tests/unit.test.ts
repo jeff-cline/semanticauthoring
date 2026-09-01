@@ -99,3 +99,65 @@ describe("answer pages", () => {
     }
   });
 });
+
+// ── phase 3 ──────────────────────────────────────────────────────────────────
+import { promptsFor, INTELLECTUAL, SOMATIC, STATES } from "../src/lib/prompts";
+import { allowedType, MAX_BYTES } from "../src/lib/storage";
+
+describe("journal prompts", () => {
+  it("is deterministic for a given day", () => {
+    const d = new Date("2026-03-14T09:00:00Z");
+    expect(promptsFor(d)).toEqual(promptsFor(new Date("2026-03-14T22:00:00Z")));
+  });
+  it("rotates across days", () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(Date.UTC(2026, 0, 1 + i));
+      seen.add(promptsFor(d).somatic);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+  it("always returns prompts from the catalogue", () => {
+    for (let i = 0; i < 40; i++) {
+      const p = promptsFor(new Date(Date.UTC(2026, 0, 1 + i * 9)));
+      expect(INTELLECTUAL).toContain(p.intellectual);
+      expect(SOMATIC).toContain(p.somatic);
+    }
+  });
+  it("keeps somatic prompts reflective rather than diagnostic", () => {
+    for (const s of SOMATIC) expect(s.toLowerCase()).not.toMatch(/should|must|wrong|problem/);
+  });
+  it("tracks the six optional states", () => {
+    expect([...STATES]).toEqual(
+      ["energy", "focus", "stress", "curiosity", "confidence", "capacity"]);
+  });
+});
+
+describe("file storage policy", () => {
+  it("accepts scholarly document types", () => {
+    expect(allowedType("application/pdf")).toBe(true);
+    expect(allowedType("text/markdown")).toBe(true);
+  });
+  it("rejects executables and images", () => {
+    expect(allowedType("application/x-msdownload")).toBe(false);
+    expect(allowedType("image/svg+xml")).toBe(false);
+    expect(allowedType("application/octet-stream")).toBe(false);
+  });
+  it("caps uploads at 40 MB", () => {
+    expect(MAX_BYTES).toBe(40 * 1024 * 1024);
+  });
+});
+
+describe("tiers cover phase 3 features", () => {
+  const free = { role: "scholar", tier: "free" };
+  it("gives every tier the workspace basics", () => {
+    for (const f of ["library", "annotations", "capture", "journal", "authoring",
+                     "questions", "lifemap", "milestones"] as const) {
+      expect(can(free, f)).toBe(true);
+    }
+  });
+  it("limits the free tier by count rather than by feature", () => {
+    expect(limitFor(free, "libraryItems")).toBe(50);
+    expect(limitFor(free, "authoringDocs")).toBe(3);
+  });
+});

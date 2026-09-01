@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { coreConfigured, corePing } from "@/lib/core";
+import { emailProviderHealth } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Integrations" };
@@ -46,6 +47,7 @@ export default async function Integrations() {
 
   const core = coreConfigured() ? ((await corePing()).ok ? "CONNECTED" : "DOWN") : "KEY REQUIRED";
   const turnstile = process.env.TURNSTILE_SECRET_KEY ? "CONNECTED" : "KEY REQUIRED";
+  const email = core === "CONNECTED" ? await emailProviderHealth().catch(() => []) : [];
 
   const groups = ["payments", "social", "scholarly"] as const;
 
@@ -72,6 +74,48 @@ export default async function Integrations() {
           </div>
         ))}
       </div>
+
+      {email.length > 0 && (
+        <>
+          <h2 style={{ fontSize: "1.15rem", marginTop: 34 }}>Email providers</h2>
+          <div className="grid grid-2">
+            {email.map((e) => (
+              <div key={e.provider} className="card">
+                <h3 style={{ fontSize: "1rem" }}>
+                  {e.provider === "google_workspace" ? "Google Workspace" : "Zapmail"}
+                </h3>
+                <p style={{ color: e.status === "CONNECTED" ? "var(--current)" : "var(--coral-ink)",
+                            fontWeight: 600, fontSize: ".85rem", letterSpacing: ".06em",
+                            margin: "0 0 8px" }}>
+                  {e.status}
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: ".9rem", margin: 0 }}>
+                  {e.provider === "google_workspace"
+                    ? "Transactional: password resets, invitations, confirmations. These must not go over cold-email infrastructure."
+                    : "Marketing and announcements. Seasoned cold-outreach mailboxes."}
+                </p>
+                {e.detail && (
+                  <p style={{ color: "var(--coral-ink)", fontSize: ".82rem", marginTop: 8,
+                              fontFamily: "ui-monospace, monospace" }}>
+                    {e.detail}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          {email.some((e) => e.provider === "google_workspace" && e.status !== "CONNECTED") && (
+            <div className="card" style={{ marginTop: 12, borderLeft: "3px solid var(--coral)" }}>
+              <strong style={{ color: "var(--coral-ink)" }}>Transactional email is degraded</strong>
+              <p style={{ color: "var(--muted)", fontSize: ".92rem", margin: "6px 0 0" }}>
+                Google Workspace is refusing the Core&rsquo;s credentials, so password resets and
+                confirmations are falling back to Zapmail and will arrive from a cold-outreach
+                domain. Fix the Google Workspace credentials in the Core, or configure dedicated
+                SMTP for semanticauthoring.org.
+              </p>
+            </div>
+          )}
+        </>
+      )}
 
       {groups.map((g) => (
         <div key={g}>

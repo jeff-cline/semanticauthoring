@@ -35,9 +35,55 @@ export const esc = (v: unknown) =>
     ? "—"
     : String(v).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
 
-/** Transactional — always google_workspace. Never Zapmail. */
-export function sendTransactional(to: string, subject: string, title: string, inner: string) {
-  return coreEmail({ to, subject, html: shell(title, inner), provider: "google_workspace" });
+/**
+ * Transactional — password resets, invitations, confirmations.
+ *
+ * Prefers google_workspace, because these must not go out over cold-email
+ * infrastructure: a password reset landing in spam locks a user out of their
+ * own account.
+ *
+ * If that provider fails (at the time of writing the Core's Google Workspace
+ * credentials are rejected with 535-5.7.8), we fall back to zapmail rather
+ * than dropping the message silently — a reset that arrives from an unexpected
+ * sender is still better than one that never arrives. The fallback is recorded
+ * so the degradation is visible instead of invisible.
+ */
+export async function sendTransactional(
+  to: string, subject: string, title: string, inner: string,
+) {
+  const html = shell(title, inner);
+  const primary = await coreEmail({ to, subject, html, provider: "google_workspace" });
+  if (primary.ok) return { ...primary, provider: "google_workspace", degraded: false };
+
+  const fallback = await coreEmail({ to, subject, html, provider: "zapmail" });
+  return {
+    ...fallback,
+    provider: fallback.ok ? "zapmail" : "none",
+    degraded: true,
+    primaryError: primary.error,
+  };
+}
+
+/** Probe which email providers the Core can actually send through right now. */
+export async function emailProviderHealth() {
+  const probe = async (provider: "google_workspace" | "zapmail") => {
+    // A send to an address that cannot receive; we only care whether the
+    // provider authenticates, which fails before delivery is attempted.
+    const r = await coreEmail({
+      to: "healthcheck@semanticauthoring.invalid",
+      subject: "provider health probe",
+      text: "probe",
+      provider,
+    });
+    const err = String(r.error ?? "");
+    const authFailed = /535|credential|not accepted|invalid login|not configured/i.test(err);
+    return {
+      provider,
+      status: r.ok ? "CONNECTED" : authFailed ? "BAD CREDENTIALS" : "REACHABLE",
+      detail: err.slice(0, 160),
+    };
+  };
+  return Promise.all([probe("google_workspace"), probe("zapmail")]);
 }
 
 /** Platform announcement — Zapmail is appropriate here. */

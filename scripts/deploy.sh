@@ -3,6 +3,11 @@
 #   ssh r0cketship 'cd /var/www/semanticauthoring && ./scripts/deploy.sh'
 set -euo pipefail
 
+# NOTE: Next.js inlines process.env values into the server bundle at BUILD time.
+# Changing .env therefore requires a rebuild — `pm2 restart` alone will keep
+# serving the old values. This script always rebuilds, so it is the correct way
+# to apply an environment change.
+
 cd "$(dirname "$0")/.."
 echo "→ pulling"
 git fetch --all -q && git reset --hard origin/main -q

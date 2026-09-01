@@ -614,3 +614,59 @@ CREATE TABLE IF NOT EXISTS defense_questions (
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS defense_owner_idx ON defense_questions(owner_id);
+
+-- ═══ Groups — cohorts, reading circles, writing groups ══════════════════════
+
+CREATE TABLE IF NOT EXISTS groups (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slug        TEXT NOT NULL UNIQUE,
+  name        TEXT NOT NULL,
+  purpose     TEXT NOT NULL DEFAULT '',
+  kind        TEXT NOT NULL DEFAULT 'reading_circle',
+    -- cohort|university|research_interest|reading_circle|writing|accountability
+    -- |methodology|publication|peer_support
+  visibility  TEXT NOT NULL DEFAULT 'private',  -- public|private|institution
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  id        SERIAL PRIMARY KEY,
+  group_id  INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role      TEXT NOT NULL DEFAULT 'member',   -- owner|moderator|member
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (group_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS group_members_user_idx ON group_members(user_id);
+
+CREATE TABLE IF NOT EXISTS group_posts (
+  id         SERIAL PRIMARY KEY,
+  group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  author_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body       TEXT NOT NULL,
+  kind       TEXT NOT NULL DEFAULT 'discussion',
+    -- discussion|question|recommendation|milestone|accountability
+  -- A member may attach one of their OWN sources as a recommendation.
+  -- Private research is never exposed to a group implicitly.
+  source_id  INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS group_posts_group_idx ON group_posts(group_id);
+
+-- Personal access tokens for the MCP server and any future programmatic use.
+-- Hashed at rest; the plaintext is shown once at creation and never again.
+CREATE TABLE IF NOT EXISTS access_tokens (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL DEFAULT '',
+  token_hash  TEXT NOT NULL UNIQUE,
+  prefix      TEXT NOT NULL DEFAULT '',
+  scopes      TEXT NOT NULL DEFAULT 'read',   -- comma separated: read,write
+  last_used_at TIMESTAMPTZ,
+  revoked_at  TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS access_tokens_user_idx ON access_tokens(user_id);

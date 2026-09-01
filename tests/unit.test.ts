@@ -235,3 +235,42 @@ describe("public search is public-only by construction", () => {
     expect(new Set(referenced)).toEqual(new Set(["publications", "profiles", "users"]));
   });
 });
+
+// ── access tokens ────────────────────────────────────────────────────────────
+import { mintToken, TOKEN_PREFIX } from "../src/lib/token";
+import { createHash } from "node:crypto";
+
+describe("access tokens", () => {
+  it("mints a prefixed token and stores only its hash", () => {
+    const t = mintToken();
+    expect(t.plain.startsWith(TOKEN_PREFIX)).toBe(true);
+    expect(t.hash).toBe(createHash("sha256").update(t.plain).digest("hex"));
+    expect(t.hash).not.toContain(t.plain);
+    expect(t.plain.length).toBeGreaterThan(30);
+  });
+  it("never repeats a token", () => {
+    const seen = new Set(Array.from({ length: 50 }, () => mintToken().plain));
+    expect(seen.size).toBe(50);
+  });
+  it("stores a prefix short enough to be non-recoverable", () => {
+    const t = mintToken();
+    expect(t.prefix.length).toBeLessThan(t.plain.length / 2);
+    expect(t.plain.startsWith(t.prefix)).toBe(true);
+  });
+});
+
+describe("MCP server contract", () => {
+  it("marks everything it writes as AI-generated", async () => {
+    const fs = await import("node:fs/promises");
+    const src = await fs.readFile("mcp/server.mjs", "utf8");
+    // The notes_create path must stamp provenance.
+    expect(src).toMatch(/generated_by_ai:\s*true/);
+    expect(src).toMatch(/ai_model/);
+  });
+  it("documents that it never fabricates", async () => {
+    const fs = await import("node:fs/promises");
+    const src = await fs.readFile("mcp/server.mjs", "utf8");
+    expect(src).toContain("NOT_VERIFIED");
+    expect(src.toLowerCase()).toContain("never fabricate");
+  });
+});

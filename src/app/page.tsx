@@ -1,30 +1,35 @@
 import Link from "next/link";
 import { PublicShell } from "@/components/Chrome";
-import { JOURNEY, Mark } from "@/components/Brand";
+import { JOURNEY } from "@/components/Brand";
 import HeroSearch from "@/components/HeroSearch";
+import HeroVideo from "@/components/HeroVideo";
 import { TIERS } from "@/lib/tiers";
 
 export default function Home() {
   return (
     <PublicShell>
       {/* Hero */}
-      <section style={{ background: "var(--midnight)", color: "#e8eef7", padding: "72px 0 92px" }}>
-        <div className="wrap narrow" style={{ textAlign: "center" }}>
-          <div style={{ display: "flex", justifyContent: "center", color: "#fff",
-                        marginBottom: 10 }}>
-            <Mark size={264} />
-          </div>
+      <section style={{ position: "relative", color: "#e8eef7", isolation: "isolate",
+                        minHeight: "min(94vh, 900px)", display: "flex",
+                        alignItems: "flex-end", overflow: "hidden" }}>
+        <HeroVideo />
+        {/* Content sits over the footage, pushed down so the tree reads first. */}
+        <div className="wrap narrow"
+             style={{ textAlign: "center", position: "relative", zIndex: 1,
+                      paddingTop: "min(46vh, 420px)", paddingBottom: 72 }}>
           <p className="eyebrow" style={{ color: "var(--gold)", letterSpacing: ".26em",
                                           fontSize: ".82rem" }}>
             Semantic Authoring
           </p>
-          <h1 style={{ color: "#fff", marginBottom: 30 }}>
+          <h1 style={{ color: "#fff", marginBottom: 30,
+                       textShadow: "0 2px 24px rgba(10,16,26,.55)" }}>
             The operating system for scholarly thinking.
           </h1>
 
           <HeroSearch />
 
-          <p className="lede" style={{ color: "#bccbe0", margin: "34px 0" }}>
+          <p className="lede" style={{ color: "#cfdbeb", margin: "34px 0",
+                                       textShadow: "0 1px 14px rgba(10,16,26,.5)" }}>
             Read deeply. Connect ideas. Develop original scholarship. Collaborate with
             mentors. Publish what matters.
           </p>

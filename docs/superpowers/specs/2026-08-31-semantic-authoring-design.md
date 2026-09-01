@@ -1,8 +1,8 @@
 # Semantic Authoring — Design Spec (Phase 1 + 2)
 
 **Date:** 2026-08-31
-**Status:** Draft for review
-**Scope:** Public brand site + authenticated back office
+**Status:** Implemented — phases 1–5 deployed
+**Scope:** Public brand site + back office (phases 1–2), scholar workspace (3), publishing (4), Scholar OS foundations (5)
 **Domain:** semanticauthoring.org
 **Repo:** github.com/jeff-cline/semanticauthoring
 
@@ -23,11 +23,16 @@ developed. This spec covers only the first two sub-projects of five.
 
 ### Explicitly out of scope (later phases)
 
-| Phase | Sub-project | Notes |
+| Phase | Sub-project | Status |
 |---|---|---|
-| 3 | Scholar workspace — library, PDF reader/annotation, Capture Thought, journal, authoring studio, **Life Map**, **Question Tracker** | Prototype before engineering |
-| 4 | Public publishing — scholar profiles, publication pages, discovery, **public testimonials** | Depends on phase 3 |
-| 5 | Scholar OS research layer — claim ledger, citation integrity, provider adapters, MCP server | Multi-quarter |
+| 3 | Scholar workspace — library, annotation, Capture Thought, journal, authoring studio, Life Map, Question Tracker, courses, review, knowledge map, groups | **Built** |
+| 4 | Public publishing — scholar profiles, publication pages, discovery, search, subscribers, public testimonials | **Built** |
+| 5 | Scholar OS — claim ledger, citation integrity, provider adapters, dissertation, defense, pipeline, MCP server | **Built** |
+
+Remaining across all phases: institutional SSO and licensing, faculty dashboards, grant and
+conference discovery, peer-review management, research analytics, mobile app, browser
+extension, Word/Docs and Overleaf integrations, Zenodo and OSF deposit, pgvector semantic
+search, and AI-assisted synthesis.
 
 Phase 5 corresponds to the "Scholar OS" brief. It is the same product — the research engine
 inside the private back office — not a separate platform. Nothing in phases 1–2 may

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { currentUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
@@ -116,6 +117,7 @@ function QuestionCard({ r, action }: { r: any; action: (fd: FormData) => Promise
     <details className="card" style={{ marginBottom: 12, maxWidth: 860 }}>
       <summary style={{ cursor: "pointer" }}>
         <strong>{r.text}</strong>
+        {" "}<Link href={`/app/questions/${r.id}`} style={{ fontSize: ".84rem" }}>open →</Link>
         <div style={{ marginTop: 6, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <span className="pill">{r.status}</span>
           {r.discipline && <span className="pill">{r.discipline}</span>}

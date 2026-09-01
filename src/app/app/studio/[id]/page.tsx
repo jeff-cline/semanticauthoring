@@ -57,6 +57,7 @@ export default async function Document({ params }: { params: Promise<{ id: strin
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 26,
                     alignItems: "start" }}>
         <form action={save}>
+          <h1 className="hp">{doc.title || "Untitled document"}</h1>
           <input type="hidden" name="id" value={doc.id} />
           <div className="field">
             <label htmlFor="title" className="hp">Title</label>

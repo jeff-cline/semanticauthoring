@@ -69,6 +69,7 @@ export default async function Course({ params }: { params: Promise<{ id: string 
   }
 
   const open = items.filter((i: any) => !i.done);
+  const readings = items.filter((i: any) => i.kind === "reading" && !i.done);
   const done = items.filter((i: any) => i.done);
 
   return (
@@ -77,6 +78,15 @@ export default async function Course({ params }: { params: Promise<{ id: string 
       <h1 style={{ marginBottom: 4 }}>{course.title}</h1>
       <p style={{ color: "var(--muted)", marginTop: 0 }}>
         {[course.code, course.term, course.year, course.instructor].filter(Boolean).join(" · ")}
+      </p>
+      <p style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+        <Link href={`/app/courses/${course.id}/import`} className="btn btn-secondary"
+              style={{ padding: "8px 16px" }}>
+          {course.syllabus_name ? "Re-import syllabus" : "Import a syllabus PDF"}
+        </Link>
+        <Link href="/app/calendar" className="btn btn-secondary" style={{ padding: "8px 16px" }}>
+          Calendar
+        </Link>
       </p>
 
       <div className="grid grid-2" style={{ alignItems: "start", marginTop: 24 }}>
@@ -130,6 +140,40 @@ export default async function Course({ params }: { params: Promise<{ id: string 
         </div>
 
         <div>
+          {readings.length > 0 && (
+            <div className="card stage stage-read" style={{ marginBottom: 16 }}>
+              <h2 style={{ fontSize: "1.05rem" }}>Reading plan ({readings.length})</h2>
+              <p style={{ color: "var(--muted)", fontSize: ".9rem" }}>
+                What to read, when to start, and when it is due.
+              </p>
+              {readings.map((r: any) => (
+                <div key={r.id} style={{ borderBottom: "1px solid var(--line)", padding: "8px 0" }}>
+                  <strong style={{ fontSize: ".93rem" }}>{r.title}</strong>
+                  {r.author && <span style={{ color: "var(--muted)" }}> — {r.author}</span>}
+                  <div style={{ marginTop: 4, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {r.pages && <span className="pill">{r.pages}</span>}
+                    {r.start_on && (
+                      <span className="pill" style={{ color: "var(--seaglass)" }}>
+                        start {new Date(r.start_on).toLocaleDateString(undefined,
+                          { month: "short", day: "numeric" })}
+                      </span>
+                    )}
+                    {r.due_on && (
+                      <span className="pill" style={{ color: "var(--current)" }}>
+                        due {new Date(r.due_on).toLocaleDateString(undefined,
+                          { month: "short", day: "numeric" })}
+                      </span>
+                    )}
+                    {r.source_id && (
+                      <Link href={`/app/library/${r.source_id}`} className="pill"
+                            style={{ textDecoration: "none" }}>in library →</Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <h2 style={{ fontSize: "1.05rem" }}>Open ({open.length})</h2>
           {open.length === 0 && <p style={{ color: "var(--muted)" }}>Nothing outstanding.</p>}
           {open.map((i: any) => (

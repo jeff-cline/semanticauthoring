@@ -132,6 +132,7 @@ export default async function EditPublication({ params }: { params: Promise<{ id
       )}
 
       <form action={save} className="card" style={{ maxWidth: 860 }}>
+        <h1 className="hp">{pub.title || "Untitled publication"}</h1>
         <input type="hidden" name="id" value={pub.id} />
         <div className="field"><label htmlFor="title">Title</label>
           <input id="title" name="title" defaultValue={pub.title} required /></div>

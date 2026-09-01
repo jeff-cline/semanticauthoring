@@ -670,3 +670,68 @@ CREATE TABLE IF NOT EXISTS access_tokens (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS access_tokens_user_idx ON access_tokens(user_id);
+
+-- ═══ Syllabus intake, reading plan, and the reading log ═════════════════════
+
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS syllabus_file TEXT NOT NULL DEFAULT '';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS syllabus_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS starts_on DATE;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS ends_on DATE;
+
+-- Backward planning: a reading due on the 1st with 5 lead days should surface
+-- from the 27th, so the scholar starts in time to arrive prepared.
+ALTER TABLE course_items ADD COLUMN IF NOT EXISTS lead_days INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE course_items ADD COLUMN IF NOT EXISTS start_on DATE;
+ALTER TABLE course_items ADD COLUMN IF NOT EXISTS pages TEXT NOT NULL DEFAULT '';
+ALTER TABLE course_items ADD COLUMN IF NOT EXISTS author TEXT NOT NULL DEFAULT '';
+ALTER TABLE course_items ADD COLUMN IF NOT EXISTS extracted BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Questions gain the reflective fields that make a question *yours*.
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS beneath TEXT NOT NULL DEFAULT '';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS sensed_on DATE;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS sensed_note TEXT NOT NULL DEFAULT '';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS chosen_or_arrived TEXT NOT NULL DEFAULT '';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS chosen_note TEXT NOT NULL DEFAULT '';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS counterfactual TEXT NOT NULL DEFAULT '';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS cost TEXT NOT NULL DEFAULT '';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS given_back TEXT NOT NULL DEFAULT '';
+
+-- MY READING — a reading journal, one entry per reading session or work.
+CREATE TABLE IF NOT EXISTS reading_log (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source_id    INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+  read_on      DATE NOT NULL DEFAULT CURRENT_DATE,
+  title        TEXT NOT NULL,
+  authors      TEXT NOT NULL DEFAULT '',
+  year         TEXT NOT NULL DEFAULT '',
+  publication  TEXT NOT NULL DEFAULT '',
+  publisher    TEXT NOT NULL DEFAULT '',
+  volume       TEXT NOT NULL DEFAULT '',
+  issue        TEXT NOT NULL DEFAULT '',
+  page_range   TEXT NOT NULL DEFAULT '',
+  edition      TEXT NOT NULL DEFAULT '',
+  doi          TEXT NOT NULL DEFAULT '',
+  url          TEXT NOT NULL DEFAULT '',
+  kind         TEXT NOT NULL DEFAULT 'journal_article',
+    -- journal_article|book|chapter|website|report|dissertation
+  why_matters  TEXT NOT NULL DEFAULT '',
+  reaction     TEXT NOT NULL DEFAULT '',
+  connections  TEXT NOT NULL DEFAULT '',
+  other_sources TEXT NOT NULL DEFAULT '',
+  keywords     TEXT NOT NULL DEFAULT '',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS reading_log_owner_idx ON reading_log(owner_id);
+
+CREATE TABLE IF NOT EXISTS reading_quotes (
+  id        SERIAL PRIMARY KEY,
+  entry_id  INTEGER NOT NULL REFERENCES reading_log(id) ON DELETE CASCADE,
+  owner_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  quote     TEXT NOT NULL,
+  page      TEXT NOT NULL DEFAULT '',
+  why       TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS reading_quotes_entry_idx ON reading_quotes(entry_id);

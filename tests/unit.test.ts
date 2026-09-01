@@ -274,3 +274,113 @@ describe("MCP server contract", () => {
     expect(src.toLowerCase()).toContain("never fabricate");
   });
 });
+
+// ── syllabus parsing and APA ─────────────────────────────────────────────────
+import { parseSyllabus, parseDate } from "../src/lib/syllabus";
+import { apa7, apaInText, formatAuthors, missingFor } from "../src/lib/apa";
+
+describe("syllabus date parsing", () => {
+  it("reads the forms syllabi actually use", () => {
+    expect(parseDate("Due March 12, 2026", 2026)).toBe("2026-03-12");
+    expect(parseDate("12 March 2026", 2026)).toBe("2026-03-12");
+    expect(parseDate("Mar 12", 2026)).toBe("2026-03-12");
+    expect(parseDate("3/12/2026", 2026)).toBe("2026-03-12");
+    expect(parseDate("2026-03-12", 2026)).toBe("2026-03-12");
+  });
+  it("falls back to the course year when none is given", () => {
+    expect(parseDate("Sept 4", 2027)).toBe("2027-09-04");
+  });
+  it("returns null rather than guessing", () => {
+    expect(parseDate("sometime next week", 2026)).toBeNull();
+    expect(parseDate("", 2026)).toBeNull();
+  });
+  it("rejects impossible dates instead of coercing them", () => {
+    expect(parseDate("13/45/2026", 2026)).toBeNull();
+  });
+});
+
+describe("syllabus extraction", () => {
+  const SYLLABUS = `
+EDU 801 Doctoral Seminar
+Instructor: Dr. Alice Warren
+Office hours: Tuesdays
+
+Required Texts
+Bourdieu, P. (1990). The logic of practice. Stanford University Press.
+Merleau-Ponty, M. (2012). Phenomenology of perception. Routledge.
+
+Course Schedule
+Sept 4 — Read Bourdieu ch. 1, pp. 12-40
+Sept 11 — Discussion post on habitus
+Oct 2 — Reading response paper due
+Oct 16 — Midterm exam
+`;
+  const r = parseSyllabus(SYLLABUS, 2026);
+
+  it("finds the required texts", () => {
+    const titles = r.books.map((b) => b.title.toLowerCase()).join(" ");
+    expect(titles).toMatch(/logic of practice|phenomenology of perception/);
+  });
+  it("finds dated schedule items", () => {
+    expect(r.items.length).toBeGreaterThan(0);
+    expect(r.items.some((i) => i.dueOn === "2026-09-04")).toBe(true);
+    expect(r.items.some((i) => i.dueOn === "2026-10-16")).toBe(true);
+  });
+  it("classifies assignments and discussions apart from readings", () => {
+    const kinds = new Set(r.items.map((i) => i.kind));
+    expect(kinds.has("assignment")).toBe(true);
+    expect(kinds.has("discussion")).toBe(true);
+  });
+  it("captures page ranges", () => {
+    expect(r.items.some((i) => /12-40/.test(i.pages))).toBe(true);
+  });
+  it("derives the term bounds from the dates it saw", () => {
+    expect(r.termStart).toBe("2026-09-04");
+    expect(r.termEnd).toBe("2026-10-16");
+  });
+  it("drops boilerplate like office hours and instructor lines", () => {
+    const all = [...r.items, ...r.books].map((i) => i.title.toLowerCase()).join(" ");
+    expect(all).not.toContain("office hours");
+  });
+  it("invents nothing from an empty syllabus", () => {
+    const empty = parseSyllabus("", 2026);
+    expect(empty.items).toHaveLength(0);
+    expect(empty.books).toHaveLength(0);
+    expect(empty.termStart).toBeNull();
+  });
+});
+
+describe("APA 7", () => {
+  it("formats a journal article", () => {
+    expect(apa7({
+      authors: "Smith, J. A.", year: "2019", title: "Embodied cognition in adult learning",
+      publication: "Journal of Adult Education", volume: "42", issue: "3",
+      page_range: "115-134", doi: "10.1000/xyz", kind: "journal_article",
+    })).toBe("Smith, J. A. (2019). Embodied cognition in adult learning. *Journal of Adult Education*, *42*(3), 115-134. https://doi.org/10.1000/xyz");
+  });
+  it("formats a book", () => {
+    expect(apa7({ authors: "Bourdieu, P.", year: "1990", title: "The logic of practice",
+      publisher: "Stanford University Press", kind: "book" }))
+      .toBe("Bourdieu, P. (1990). *The logic of practice*. Stanford University Press.");
+  });
+  it("uses n.d. rather than inventing a year", () => {
+    expect(apa7({ authors: "Smith, J.", title: "Untitled work", kind: "book" }))
+      .toContain("(n.d.)");
+  });
+  it("converts loose names to APA form", () => {
+    expect(formatAuthors("John Smith")).toBe("Smith, J.");
+    expect(formatAuthors("John Smith, Beth Jones")).toBe("Smith, J., & Jones, B.");
+    expect(formatAuthors("Smith, J. A.")).toBe("Smith, J. A.");
+  });
+  it("builds in-text citations with and without a page", () => {
+    const f = { authors: "Smith, J. A.", year: "2019", title: "X" };
+    expect(apaInText(f)).toBe("(Smith, 2019)");
+    expect(apaInText(f, "42")).toBe("(Smith, 2019, p. 42)");
+  });
+  it("names what is missing rather than hiding it", () => {
+    expect(missingFor({ title: "X", kind: "journal_article" }))
+      .toEqual(expect.arrayContaining(["author", "year", "journal"]));
+    expect(missingFor({ authors: "Smith, J.", year: "2019", title: "X",
+      publication: "J", kind: "journal_article" })).toEqual([]);
+  });
+});

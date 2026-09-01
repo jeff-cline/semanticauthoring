@@ -11,8 +11,8 @@ export default function Home() {
       <section style={{ background: "var(--midnight)", color: "#e8eef7", padding: "72px 0 92px" }}>
         <div className="wrap narrow" style={{ textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "center", color: "#fff",
-                        marginBottom: 18 }}>
-            <Mark size={132} />
+                        marginBottom: 10 }}>
+            <Mark size={264} />
           </div>
           <p className="eyebrow" style={{ color: "var(--gold)", letterSpacing: ".26em",
                                           fontSize: ".82rem" }}>

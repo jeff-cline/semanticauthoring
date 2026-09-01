@@ -18,9 +18,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             <Link href="/mission">Mission</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/about">About</Link>
-            <Link href="/join" className="tag" style={{ color: "#fff", borderColor: "#3a4c66" }}>
-              Request access
-            </Link>
+            <Link href="/join">Join</Link>
           </nav>
         </div>
       </header>
@@ -34,7 +32,8 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Deep internal links — every answer page reachable from every page. */}
-          <div className="grid grid-3" style={{ gap: "28px 40px", marginBottom: 36 }}>
+          <div className="grid" style={{ gap: "28px 40px", marginBottom: 36,
+                    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))" }}>
             <div>
               <p className="eyebrow" style={{ color: "var(--seaglass)" }}>Answers for scholars</p>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 2 }}>
@@ -73,6 +72,42 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                 <li><Link href="/join" style={{ fontSize: ".92rem" }}>Request early access</Link></li>
                 <li><Link href="/login" style={{ fontSize: ".92rem" }}>Sign in</Link></li>
               </ul>
+            </div>
+
+            {/* Machine-readable surfaces. Answer engines, chat assistants, and
+                crawlers use these; keeping them linked makes them discoverable
+                rather than merely present. */}
+            <div>
+              <p className="eyebrow" style={{ color: "var(--seaglass)" }}>For machines</p>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 2 }}>
+                <li>
+                  <a href="/sitemap.xml" style={{ fontSize: ".92rem" }}>XML sitemap</a>
+                  <span style={{ color: "#6d8099", fontSize: ".78rem" }}> · every public page</span>
+                </li>
+                <li>
+                  <a href="/feed.xml" style={{ fontSize: ".92rem" }}>RSS feed</a>
+                  <span style={{ color: "#6d8099", fontSize: ".78rem" }}> · new scholarship</span>
+                </li>
+                <li>
+                  <a href="/llms.txt" style={{ fontSize: ".92rem" }}>llms.txt</a>
+                  <span style={{ color: "#6d8099", fontSize: ".78rem" }}> · for AI assistants</span>
+                </li>
+                <li>
+                  <a href="/robots.txt" style={{ fontSize: ".92rem" }}>robots.txt</a>
+                  <span style={{ color: "#6d8099", fontSize: ".78rem" }}> · crawl rules</span>
+                </li>
+                <li>
+                  <Link href="/answers" style={{ fontSize: ".92rem" }}>Answer pages</Link>
+                  <span style={{ color: "#6d8099", fontSize: ".78rem" }}> · structured Q&amp;A</span>
+                </li>
+              </ul>
+              <p style={{ color: "#6d8099", fontSize: ".78rem", marginTop: 12, lineHeight: 1.6 }}>
+                Every public page carries schema.org structured data —
+                <code style={{ color: "#8fa3c0" }}> ScholarlyArticle</code>,
+                <code style={{ color: "#8fa3c0" }}> Person</code>,
+                <code style={{ color: "#8fa3c0" }}> FAQPage</code> — so search engines and
+                chat assistants can read it directly.
+              </p>
             </div>
           </div>
 

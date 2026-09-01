@@ -10,7 +10,9 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         // The authenticated workspace and API are never indexed.
-        disallow: ["/app/", "/api/", "/login", "/logout"],
+        disallow: ["/app/", "/api/", "/login", "/logout", "/forgot", "/reset/",
+                   "/review/", "/testimonial/", "/subscribed", "/unsubscribe",
+                   "/change-password"],
       },
     ],
     sitemap: `${SITE}/sitemap.xml`,

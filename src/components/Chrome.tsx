@@ -11,6 +11,8 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
         <div className="wrap">
           <Link href="/" className="brand"><Mark /> Semantic Authoring</Link>
           <nav className="nav" aria-label="Main">
+            <Link href="/discover">Discover</Link>
+            <Link href="/scholars">Scholars</Link>
             <Link href="/journey">Journey</Link>
             <Link href="/answers">Answers</Link>
             <Link href="/mission">Mission</Link>
@@ -61,6 +63,9 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             <div>
               <p className="eyebrow" style={{ color: "var(--seaglass)" }}>Platform</p>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 2 }}>
+                <li><Link href="/discover" style={{ fontSize: ".92rem" }}>Discover scholarship</Link></li>
+                <li><Link href="/scholars" style={{ fontSize: ".92rem" }}>Scholars</Link></li>
+                <li><Link href="/search" style={{ fontSize: ".92rem" }}>Search</Link></li>
                 <li><Link href="/journey" style={{ fontSize: ".92rem" }}>The scholarly journey</Link></li>
                 <li><Link href="/mission" style={{ fontSize: ".92rem" }}>Mission and values</Link></li>
                 <li><Link href="/pricing" style={{ fontSize: ".92rem" }}>Pricing</Link></li>

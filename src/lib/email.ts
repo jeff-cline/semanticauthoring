@@ -120,3 +120,79 @@ export function milestoneEmail(to: string, name: string, title: string) {
         contribution to your field, and it deserved more than passing unnoticed.</p>`,
   );
 }
+
+export function reviewInviteEmail(
+  to: string, fromName: string, title: string, role: string, url: string, due?: string,
+) {
+  return sendTransactional(
+    to,
+    `${fromName} asked you to review "${title}"`,
+    "A review request",
+    `<p><strong>${esc(fromName)}</strong> has shared one piece of work with you as
+        ${esc(role)}: <strong>${esc(title)}</strong>.</p>
+     ${due ? `<p style="color:#41506a">They have asked for comments by <strong>${esc(due)}</strong>.</p>` : ""}
+     <p style="margin:24px 0">
+       <a href="${url}" style="background:#5A6B80;color:#fff;text-decoration:none;
+          padding:12px 22px;border-radius:8px;display:inline-block">Open and comment</a>
+     </p>
+     <p style="color:#61708a;font-size:13px">
+       This link opens only this one document. It does not give access to their research
+       library, journal, or any other work.</p>`,
+  );
+}
+
+export function reviewCommentEmail(to: string, reviewer: string, title: string, url: string) {
+  return sendTransactional(
+    to, `New comment on "${title}"`, "New review comment",
+    `<p><strong>${esc(reviewer)}</strong> left a comment on <strong>${esc(title)}</strong>.</p>
+     <p style="margin:24px 0">
+       <a href="${url}" style="background:#176B73;color:#fff;text-decoration:none;
+          padding:12px 22px;border-radius:8px;display:inline-block">Read the comment</a>
+     </p>`,
+  );
+}
+
+/**
+ * New-publication notification to a confirmed subscriber.
+ *
+ * Opted-in broadcast — the Core lists Klaviyo as "opted-in marketing automation",
+ * which is the correct pipe. Until that integration is wired here it routes
+ * transactionally rather than through Zapmail's cold mailboxes, because
+ * subscriber broadcasts must never touch cold-email infrastructure.
+ */
+export function publishedEmail(
+  to: string, author: string, title: string, url: string, abstract?: string,
+) {
+  const base = process.env.SITE_URL ?? "https://semanticauthoring.org";
+  return sendTransactional(
+    to,
+    `${author} published "${title}"`,
+    esc(title) as string,
+    `<p style="color:#61708a;margin:0 0 14px">New from <strong>${esc(author)}</strong></p>
+     ${abstract ? `<p style="color:#41506a">${esc(abstract)}</p>` : ""}
+     <p style="margin:26px 0">
+       <a href="${url}" style="background:#D96C59;color:#fff;text-decoration:none;
+          padding:12px 22px;border-radius:8px;display:inline-block">Read it</a>
+     </p>
+     <p style="color:#61708a;font-size:12px">
+       You subscribed to ${esc(author)} on Semantic Authoring.
+       <a href="${base}/unsubscribe">Unsubscribe</a> at any time.</p>`,
+  );
+}
+
+export function passwordResetEmail(to: string, name: string, url: string) {
+  return sendTransactional(
+    to,
+    "Reset your Semantic Authoring password",
+    "Reset your password",
+    `<p>${esc(name) === "—" ? "Hello" : `Hello ${esc(name)}`}, someone asked to reset the
+        password for this account.</p>
+     <p style="margin:26px 0">
+       <a href="${url}" style="background:#176B73;color:#fff;text-decoration:none;
+          padding:12px 22px;border-radius:8px;display:inline-block">Choose a new password</a>
+     </p>
+     <p style="color:#61708a;font-size:13px">
+       This link works once and expires in one hour. If you didn't ask for it, you can ignore
+       this message — your password has not changed.</p>`,
+  );
+}

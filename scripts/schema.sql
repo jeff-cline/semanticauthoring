@@ -347,3 +347,187 @@ CREATE TABLE IF NOT EXISTS milestones (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS milestones_owner_idx ON milestones(owner_id);
+
+-- ═══ PHASE 3 (remainder) — courses and permissioned review ══════════════════
+
+CREATE TABLE IF NOT EXISTS courses (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  code        TEXT NOT NULL DEFAULT '',
+  term        TEXT NOT NULL DEFAULT '',
+  year        TEXT NOT NULL DEFAULT '',
+  instructor  TEXT NOT NULL DEFAULT '',
+  syllabus    TEXT NOT NULL DEFAULT '',
+  notes       TEXT NOT NULL DEFAULT '',
+  archived    BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS courses_owner_idx ON courses(owner_id);
+
+CREATE TABLE IF NOT EXISTS course_items (
+  id         SERIAL PRIMARY KEY,
+  course_id  INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL DEFAULT 'reading',  -- reading|assignment|discussion|note
+  title      TEXT NOT NULL,
+  detail     TEXT NOT NULL DEFAULT '',
+  due_on     DATE,
+  done       BOOLEAN NOT NULL DEFAULT FALSE,
+  source_id  INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS course_items_course_idx ON course_items(course_id);
+
+-- Permissioned review. A scholar shares ONE artefact with ONE person.
+CREATE TABLE IF NOT EXISTS shares (
+  id            SERIAL PRIMARY KEY,
+  owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  entity_type   TEXT NOT NULL,        -- document|publication
+  entity_id     INTEGER NOT NULL,
+  reviewer_name  TEXT NOT NULL DEFAULT '',
+  reviewer_email TEXT NOT NULL,
+  reviewer_role  TEXT NOT NULL DEFAULT 'reviewer', -- mentor|advisor|committee|peer|reviewer
+  token         TEXT NOT NULL UNIQUE,
+  can_comment   BOOLEAN NOT NULL DEFAULT TRUE,
+  status        TEXT NOT NULL DEFAULT 'active',  -- active|revoked|expired
+  due_on        DATE,
+  expires_at    TIMESTAMPTZ NOT NULL,
+  last_opened_at TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS shares_owner_idx ON shares(owner_id);
+
+CREATE TABLE IF NOT EXISTS review_comments (
+  id           SERIAL PRIMARY KEY,
+  share_id     INTEGER REFERENCES shares(id) ON DELETE CASCADE,
+  entity_type  TEXT NOT NULL,
+  entity_id    INTEGER NOT NULL,
+  author_name  TEXT NOT NULL,
+  author_email TEXT NOT NULL DEFAULT '',
+  author_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  body         TEXT NOT NULL,
+  anchor       TEXT NOT NULL DEFAULT '',   -- quoted passage the comment refers to
+  resolved     BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS review_comments_entity_idx ON review_comments(entity_type, entity_id);
+
+-- ═══ PHASE 4 — public profiles and publishing ═══════════════════════════════
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  handle      TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL DEFAULT '',
+  headline    TEXT NOT NULL DEFAULT '',
+  bio         TEXT NOT NULL DEFAULT '',
+  institution TEXT NOT NULL DEFAULT '',
+  program     TEXT NOT NULL DEFAULT '',
+  degree      TEXT NOT NULL DEFAULT '',
+  interests   TEXT NOT NULL DEFAULT '',
+  orcid       TEXT NOT NULL DEFAULT '',
+  website     TEXT NOT NULL DEFAULT '',
+  social      TEXT NOT NULL DEFAULT '',
+  is_public   BOOLEAN NOT NULL DEFAULT FALSE,
+  show_timeline BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS publications (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  document_id  INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  slug         TEXT NOT NULL,
+  title        TEXT NOT NULL,
+  subtitle     TEXT NOT NULL DEFAULT '',
+  abstract     TEXT NOT NULL DEFAULT '',
+  body         TEXT NOT NULL DEFAULT '',
+  kind         TEXT NOT NULL DEFAULT 'essay',
+    -- essay|research_note|article|working_paper|commentary|reflection
+    -- |explainer|conference_summary
+  tags         TEXT NOT NULL DEFAULT '',
+  topic        TEXT NOT NULL DEFAULT '',
+  status       TEXT NOT NULL DEFAULT 'draft',  -- draft|published|unpublished
+  doi          TEXT NOT NULL DEFAULT '',
+  external_url TEXT NOT NULL DEFAULT '',
+  reading_time INTEGER NOT NULL DEFAULT 0,
+  word_count   INTEGER NOT NULL DEFAULT 0,
+  published_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, slug)
+);
+CREATE INDEX IF NOT EXISTS publications_owner_idx ON publications(owner_id);
+CREATE INDEX IF NOT EXISTS publications_status_idx ON publications(status);
+
+-- ═══ PHASE 5 — Scholar OS: claims, evidence, citation integrity ═════════════
+
+CREATE TABLE IF NOT EXISTS claims (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text         TEXT NOT NULL,
+  question_id  INTEGER REFERENCES questions(id) ON DELETE SET NULL,
+  document_id  INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  chapter      TEXT NOT NULL DEFAULT '',
+  notes        TEXT NOT NULL DEFAULT '',
+  last_reviewed_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS claims_owner_idx ON claims(owner_id);
+
+CREATE TABLE IF NOT EXISTS claim_evidence (
+  id           SERIAL PRIMARY KEY,
+  claim_id     INTEGER NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source_id    INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+  annotation_id INTEGER REFERENCES annotations(id) ON DELETE SET NULL,
+  relation     TEXT NOT NULL DEFAULT 'supports',
+    -- supports|contradicts|qualifies|replicates|fails_to_replicate
+    -- |provides_context|cites
+  location     TEXT NOT NULL DEFAULT '',   -- page / section within the source
+  note         TEXT NOT NULL DEFAULT '',
+  confidence   TEXT NOT NULL DEFAULT 'stated',  -- stated|inferred|uncertain
+  -- provenance of the extraction itself
+  generated_by_ai BOOLEAN NOT NULL DEFAULT FALSE,
+  ai_model     TEXT NOT NULL DEFAULT '',
+  human_verified BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS claim_evidence_claim_idx ON claim_evidence(claim_id);
+
+-- Result of checking a source's metadata against authoritative indexes.
+CREATE TABLE IF NOT EXISTS citation_checks (
+  id          SERIAL PRIMARY KEY,
+  source_id   INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status      TEXT NOT NULL,
+    -- VERIFIED_METADATA|UNVERIFIED|NOT_FOUND|RETRACTED|CORRECTED
+    -- |EXPRESSION_OF_CONCERN|MISMATCH|ERROR
+  provider    TEXT NOT NULL DEFAULT '',
+  detail      TEXT NOT NULL DEFAULT '',
+  raw         TEXT NOT NULL DEFAULT '',
+  checked_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS citation_checks_source_idx ON citation_checks(source_id);
+
+-- Password reset tokens. Single-use, short-lived, hashed at rest so a database
+-- read cannot be turned into an account takeover.
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at    TIMESTAMPTZ,
+  requested_ip TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets(user_id);

@@ -31,14 +31,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="grouplabel">Read</div>
         <Link href="/app/library">Research library</Link>
+        <Link href="/app/courses">Courses</Link>
 
         <div className="grouplabel">Connect</div>
         <Link href="/app/questions">Questions</Link>
+        <Link href="/app/map">Knowledge map</Link>
         <Link href="/app/connect">Connections</Link>
         <Link href="/app/life-map">Life Map</Link>
 
         <div className="grouplabel">Author</div>
         <Link href="/app/studio">Authoring studio</Link>
+        <Link href="/app/claims">Claim ledger</Link>
+        <Link href="/app/integrity">Citation integrity</Link>
+
+        <div className="grouplabel">Review</div>
+        <Link href="/app/review">Mentor &amp; committee</Link>
+
+        <div className="grouplabel">Publish</div>
+        <Link href="/app/profile">Public profile</Link>
+        <Link href="/app/publications">Publications</Link>
 
         <div className="grouplabel">Celebrate</div>
         <Link href="/app/timeline">Milestones</Link>
@@ -57,6 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
 
         <div className="grouplabel">Account</div>
+        <Link href="/app/export">Export your work</Link>
         <Link href="/change-password">Change password</Link>
         <Link href="/logout">Sign out</Link>
         <p style={{ color: "#6d8099", fontSize: ".74rem", padding: "18px 24px 0", margin: 0 }}>

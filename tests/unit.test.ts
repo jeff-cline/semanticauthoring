@@ -161,3 +161,77 @@ describe("tiers cover phase 3 features", () => {
     expect(limitFor(free, "authoringDocs")).toBe(3);
   });
 });
+
+// ── phases 4 and 5 ───────────────────────────────────────────────────────────
+import { slugify, handleProblem, readingTime, RESERVED } from "../src/lib/slug";
+import { normalizeDoi } from "../src/lib/scholarly";
+
+describe("handles and slugs", () => {
+  it("slugifies titles safely", () => {
+    expect(slugify("What Is *Semantic* Authoring?")).toBe("what-is-semantic-authoring");
+    expect(slugify("  Trailing — dashes  ")).toBe("trailing-dashes");
+    expect(slugify("!!!", "fallback")).toBe("fallback");
+  });
+  it("rejects handles that would shadow real routes", () => {
+    for (const r of ["app", "api", "login", "search", "scholars", "answers"]) {
+      expect(RESERVED.has(r)).toBe(true);
+      expect(handleProblem(r)).toBeTruthy();
+    }
+  });
+  it("enforces handle shape", () => {
+    expect(handleProblem("ab")).toBeTruthy();          // too short
+    expect(handleProblem("Has-Capitals")).toBeTruthy();
+    expect(handleProblem("has_underscore")).toBeTruthy();
+    expect(handleProblem("-leading")).toBeTruthy();
+    expect(handleProblem("a-good-handle")).toBeNull();
+  });
+  it("estimates reading time from words", () => {
+    expect(readingTime("")).toBe(1);
+    expect(readingTime(new Array(450).fill("word").join(" "))).toBe(2);
+  });
+});
+
+describe("DOI normalisation", () => {
+  it("strips resolver prefixes", () => {
+    for (const v of ["10.1038/nature12373", "https://doi.org/10.1038/nature12373",
+                     "http://dx.doi.org/10.1038/nature12373", "doi:10.1038/nature12373",
+                     "  10.1038/nature12373  "]) {
+      expect(normalizeDoi(v)).toBe("10.1038/nature12373");
+    }
+  });
+  it("returns empty for nothing", () => {
+    expect(normalizeDoi("")).toBe("");
+  });
+});
+
+describe("public search is public-only by construction", () => {
+  it("constrains every query to published work and public profiles", async () => {
+    const fs = await import("node:fs/promises");
+    const src = await fs.readFile("src/lib/search.ts", "utf8");
+    // Each SELECT that reaches publications must filter on published status,
+    // and each that reaches profiles must filter on is_public.
+    const selects = src.split("SELECT").slice(1);
+    const touching = selects.filter((s) => /FROM\s+publications|JOIN\s+profiles/.test(s));
+    expect(touching.length).toBeGreaterThan(0);
+    for (const s of touching) {
+      if (/publications/.test(s)) expect(s).toMatch(/status\s*=\s*'published'/);
+      if (/profiles/.test(s)) expect(s).toMatch(/is_public\s*=\s*TRUE/);
+    }
+  });
+  it("never reads private workspace tables", async () => {
+    const fs = await import("node:fs/promises");
+    const src = await fs.readFile("src/lib/search.ts", "utf8");
+    // Look at actual table references (FROM / JOIN), not prose in comments.
+    // Strip comments first, then match uppercase SQL keywords only.
+    const sql = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    const referenced = [...sql.matchAll(/\b(?:FROM|JOIN)\s+([a-z_]+)/g)]
+      .map((m) => m[1].toLowerCase());
+    for (const t of ["journal_entries", "life_experiences", "annotations", "captures",
+                     "documents", "claims", "claim_evidence", "contacts", "sources",
+                     "questions", "milestones", "shares", "review_comments"]) {
+      expect(referenced).not.toContain(t);
+    }
+    // It may only reach these three.
+    expect(new Set(referenced)).toEqual(new Set(["publications", "profiles", "users"]));
+  });
+});

@@ -49,6 +49,9 @@ export default async function Login({
                    autoComplete="current-password" />
           </div>
           <button className="btn btn-primary" style={{ width: "100%" }}>Sign in</button>
+          <p style={{ textAlign: "center", marginTop: 16, marginBottom: 0 }}>
+            <Link href="/forgot" style={{ fontSize: ".9rem" }}>Forgot your password?</Link>
+          </p>
         </form>
         <p style={{ textAlign: "center", marginTop: 20 }}>
           <Link href="/" style={{ color: "#8fa3c0", fontSize: ".9rem" }}>← Back to site</Link>

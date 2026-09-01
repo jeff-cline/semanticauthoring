@@ -7,3 +7,7 @@ node_modules/
 .DS_Store
 dist/
 coverage/
+
+# sync-created duplicates
+* 2.*
+*\ 2.*

@@ -531,3 +531,86 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets(user_id);
+
+-- ═══ PHASE 5 — dissertation, pipeline, defense ══════════════════════════════
+
+CREATE TABLE IF NOT EXISTS dissertations (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  degree      TEXT NOT NULL DEFAULT 'PhD',   -- PhD|PsyD|EdD|MD-PhD|JD-PhD|Masters
+  institution TEXT NOT NULL DEFAULT '',
+  program     TEXT NOT NULL DEFAULT '',
+  chair       TEXT NOT NULL DEFAULT '',
+  committee   TEXT NOT NULL DEFAULT '',
+  problem     TEXT NOT NULL DEFAULT '',
+  purpose     TEXT NOT NULL DEFAULT '',
+  framework   TEXT NOT NULL DEFAULT '',
+  methodology TEXT NOT NULL DEFAULT '',
+  proposal_status TEXT NOT NULL DEFAULT 'drafting',
+    -- drafting|submitted|approved|irb_pending|irb_approved
+  defense_on  DATE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS dissertations_owner_idx ON dissertations(owner_id);
+
+CREATE TABLE IF NOT EXISTS dissertation_chapters (
+  id             SERIAL PRIMARY KEY,
+  dissertation_id INTEGER NOT NULL REFERENCES dissertations(id) ON DELETE CASCADE,
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  position       INTEGER NOT NULL DEFAULT 0,
+  title          TEXT NOT NULL,
+  status         TEXT NOT NULL DEFAULT 'not_started',
+    -- not_started|drafting|in_review|revising|complete
+  target_words   INTEGER NOT NULL DEFAULT 0,
+  document_id    INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  notes          TEXT NOT NULL DEFAULT '',
+  due_on         DATE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS chapters_diss_idx ON dissertation_chapters(dissertation_id);
+
+CREATE TABLE IF NOT EXISTS submissions (
+  id             SERIAL PRIMARY KEY,
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  document_id    INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+  title          TEXT NOT NULL,
+  venue          TEXT NOT NULL DEFAULT '',       -- target journal or repository
+  stage          TEXT NOT NULL DEFAULT 'idea',
+    -- idea|draft|internal_review|citation_audit|ready|submitted|under_review
+    -- |revise_resubmit|accepted|published|declined
+  coauthors      TEXT NOT NULL DEFAULT '',
+  word_limit     INTEGER NOT NULL DEFAULT 0,
+  guidelines     TEXT NOT NULL DEFAULT '',
+  submitted_on   DATE,
+  decision_on    DATE,
+  revision_due   DATE,
+  reviewer_notes TEXT NOT NULL DEFAULT '',
+  doi            TEXT NOT NULL DEFAULT '',
+  url            TEXT NOT NULL DEFAULT '',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS submissions_owner_idx ON submissions(owner_id);
+
+-- Defense preparation. Questions are the SCHOLAR'S OWN anticipation work —
+-- the platform never presents generated prompts as real committee questions.
+CREATE TABLE IF NOT EXISTS defense_questions (
+  id             SERIAL PRIMARY KEY,
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  dissertation_id INTEGER REFERENCES dissertations(id) ON DELETE CASCADE,
+  claim_id       INTEGER REFERENCES claims(id) ON DELETE SET NULL,
+  category       TEXT NOT NULL DEFAULT 'methodological',
+    -- theoretical|methodological|statistical|epistemological|ethical
+    -- |literature|limitations|generalizability|contribution|future_research
+  question       TEXT NOT NULL,
+  response       TEXT NOT NULL DEFAULT '',
+  confidence     TEXT NOT NULL DEFAULT 'unprepared', -- unprepared|shaky|ready
+  origin         TEXT NOT NULL DEFAULT 'self',       -- self|prompt|advisor
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS defense_owner_idx ON defense_questions(owner_id);

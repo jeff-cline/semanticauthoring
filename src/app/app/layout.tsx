@@ -44,12 +44,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/app/claims">Claim ledger</Link>
         <Link href="/app/integrity">Citation integrity</Link>
 
+        <div className="grouplabel">Dissertation</div>
+        <Link href="/app/dissertation">Dissertation</Link>
+        <Link href="/app/defense">Defense prep</Link>
+
         <div className="grouplabel">Review</div>
         <Link href="/app/review">Mentor &amp; committee</Link>
 
         <div className="grouplabel">Publish</div>
         <Link href="/app/profile">Public profile</Link>
         <Link href="/app/publications">Publications</Link>
+        <Link href="/app/pipeline">Publication pipeline</Link>
 
         <div className="grouplabel">Celebrate</div>
         <Link href="/app/timeline">Milestones</Link>

@@ -1,0 +1,12 @@
+[Unit]
+Description=Semantic Authoring nightly backup
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/var/www/semanticauthoring/scripts/backup.sh
+# A failed backup must be loud, not silent.
+ExecStopPost=/bin/sh -c 'if [ "$EXIT_STATUS" != "0" ]; then /var/www/semanticauthoring/scripts/backup-alert.sh "$EXIT_STATUS"; fi'
+StandardOutput=journal
+StandardError=journal

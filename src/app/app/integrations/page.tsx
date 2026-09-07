@@ -3,6 +3,7 @@ import { currentUser } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { coreConfigured, corePing } from "@/lib/core";
 import { emailProviderHealth } from "@/lib/email";
+import { readFile } from "node:fs/promises";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Integrations" };
@@ -49,6 +50,17 @@ export default async function Integrations() {
   const turnstile = process.env.TURNSTILE_SECRET_KEY ? "CONNECTED" : "KEY REQUIRED";
   const email = core === "CONNECTED" ? await emailProviderHealth().catch(() => []) : [];
 
+  let backup: any = null;
+  try {
+    backup = JSON.parse(
+      await readFile("/var/lib/semanticauthoring/backup-status.json", "utf8"));
+  } catch { /* never run */ }
+  const backupAgeHours = backup?.at
+    ? Math.round((Date.now() - new Date(backup.at).getTime()) / 3_600_000) : null;
+  const backupState = !backup ? "NEVER RUN"
+    : !backup.ok ? "FAILED"
+    : (backupAgeHours ?? 999) > 36 ? "STALE" : "OK";
+
   const groups = ["payments", "social", "scholarly"] as const;
 
   return (
@@ -59,6 +71,29 @@ export default async function Integrations() {
         Every integration is a configured shell — drop keys into the server environment and
         the status flips to connected. Credentials are never rendered back to the browser.
       </p>
+
+      <div className="card" style={{ maxWidth: 780, marginBottom: 22,
+           borderLeft: `3px solid ${backupState === "OK" ? "var(--current)" : "var(--coral)"}` }}>
+        <h2 style={{ fontSize: "1.05rem" }}>Backups</h2>
+        <p style={{ color: backupState === "OK" ? "var(--current)" : "var(--coral-ink)",
+                    fontWeight: 600, fontSize: ".85rem", letterSpacing: ".06em",
+                    margin: "0 0 8px" }}>
+          {backupState}
+        </p>
+        {backup ? (
+          <p style={{ color: "var(--muted)", fontSize: ".9rem", margin: 0 }}>
+            Last run {backupAgeHours}h ago
+            {backup.verified && " · verified by test restore"}
+            {backup.offsite ? " · copied offsite" : " · OFFSITE COPY FAILED"}
+            {backup.tables && ` · ${backup.tables} tables`}
+            {backup.error && ` · ${backup.error}`}
+          </p>
+        ) : (
+          <p style={{ color: "var(--muted)", fontSize: ".9rem", margin: 0 }}>
+            No backup has been recorded. If this persists, the nightly timer is not running.
+          </p>
+        )}
+      </div>
 
       <h2 style={{ fontSize: "1.15rem", marginTop: 30 }}>Platform</h2>
       <div className="grid grid-3">

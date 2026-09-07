@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Semantic Authoring backup nightly
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 UTC
+# If the box was off at 03:20, run as soon as it is back rather than skipping.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

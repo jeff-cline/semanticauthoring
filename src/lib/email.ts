@@ -1,5 +1,6 @@
 import "server-only";
 import { coreEmail } from "./core";
+import { sendSmtp, smtpConfigured } from "./mailer";
 
 // ── Email routing (spec §14) ─────────────────────────────────────────────────
 // The Core describes Zapmail as COLD/MARKETING infrastructure on seasoned
@@ -38,29 +39,37 @@ export const esc = (v: unknown) =>
 /**
  * Transactional — password resets, invitations, confirmations.
  *
- * Prefers google_workspace, because these must not go out over cold-email
- * infrastructure: a password reset landing in spam locks a user out of their
- * own account.
- *
- * If that provider fails (at the time of writing the Core's Google Workspace
- * credentials are rejected with 535-5.7.8), we fall back to zapmail rather
- * than dropping the message silently — a reset that arrives from an unexpected
- * sender is still better than one that never arrives. The fallback is recorded
- * so the degradation is visible instead of invisible.
+ * Tries the platform's own SMTP first when configured, because a password reset
+ * should not depend on a shared marketing system whose credentials can lapse
+ * unnoticed. Falls back to the Core's business mail, then to its cold-outreach
+ * mailboxes rather than dropping the message: a reset arriving from an
+ * unexpected sender still beats one that never arrives. Every fallback is
+ * recorded so the degradation stays visible instead of silent.
  */
 export async function sendTransactional(
   to: string, subject: string, title: string, inner: string,
 ) {
   const html = shell(title, inner);
+
+  if (smtpConfigured()) {
+    const direct = await sendSmtp(to, subject, html);
+    if (direct.ok) return { ok: true, provider: "smtp", degraded: false };
+    // Fall through — but remember why, so the failure is not lost.
+    var smtpError = direct.error;
+  }
+
   const primary = await coreEmail({ to, subject, html, provider: "google_workspace" });
-  if (primary.ok) return { ...primary, provider: "google_workspace", degraded: false };
+  if (primary.ok) {
+    return { ok: true, provider: "core:google_workspace",
+             degraded: smtpConfigured(), primaryError: smtpError };
+  }
 
   const fallback = await coreEmail({ to, subject, html, provider: "zapmail" });
   return {
     ...fallback,
-    provider: fallback.ok ? "zapmail" : "none",
+    provider: fallback.ok ? "core:zapmail" : "none",
     degraded: true,
-    primaryError: primary.error,
+    primaryError: smtpError ?? primary.error,
   };
 }
 

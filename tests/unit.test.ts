@@ -533,3 +533,92 @@ describe("OIDC PKCE", () => {
     expect(seen.size).toBe(40);
   });
 });
+
+// ── bibliographic import/export ──────────────────────────────────────────────
+import { parseBibtex, parseRis, parseCslJson, parseAny, detectFormat, toRis, toCslJson }
+  from "../src/lib/biblio";
+
+describe("bibliography parsing", () => {
+  const BIB = `@article{mehling2009,
+  title = {Body awareness: construct and self-report measures},
+  author = {Mehling, Wolf E. and Gopisetty, Viranjini},
+  journal = {PLoS ONE},
+  year = {2009},
+  volume = {4},
+  number = {5},
+  pages = {e5614},
+  doi = {10.1371/journal.pone.0005614}
+}`;
+  it("reads BibTeX fields", () => {
+    const { refs, failed } = parseBibtex(BIB);
+    expect(failed).toBe(0);
+    expect(refs).toHaveLength(1);
+    expect(refs[0].title).toMatch(/Body awareness/);
+    expect(refs[0].authors).toMatch(/Mehling/);
+    expect(refs[0].doi).toBe("10.1371/journal.pone.0005614");
+    expect(refs[0].year).toBe("2009");
+  });
+
+  const RIS = `TY  - JOUR
+TI  - Interoception and mental health
+AU  - Khalsa, Sahib
+PY  - 2018
+JO  - Biological Psychiatry
+DO  - 10.1016/j.bpsc.2017.12.004
+SP  - 501
+EP  - 513
+ER  - `;
+  it("reads RIS tags", () => {
+    const { refs, failed } = parseRis(RIS);
+    expect(failed).toBe(0);
+    expect(refs[0].title).toBe("Interoception and mental health");
+    expect(refs[0].doi).toBe("10.1016/j.bpsc.2017.12.004");
+    expect(refs[0].pages).toBe("501-513");
+  });
+
+  it("reads CSL JSON", () => {
+    const { refs } = parseCslJson(JSON.stringify([{
+      type: "article-journal", title: "Embodiment and cognition",
+      author: [{ family: "Varela", given: "Francisco" }],
+      issued: { "date-parts": [[1991]] }, DOI: "10.1234/abc",
+    }]));
+    expect(refs[0].title).toBe("Embodiment and cognition");
+    expect(refs[0].authors).toBe("Varela, Francisco");
+    expect(refs[0].year).toBe("1991");
+  });
+
+  it("detects the format so the scholar does not have to", () => {
+    expect(detectFormat(BIB)).toBe("bibtex");
+    expect(detectFormat(RIS)).toBe("ris");
+    expect(detectFormat("[]")).toBe("csl");
+    expect(detectFormat("just some prose")).toBe("unknown");
+  });
+
+  it("reports unreadable entries rather than importing them half-formed", () => {
+    const { refs, failed } = parseBibtex("@article{broken, author = {No Title Here}}");
+    expect(refs).toHaveLength(0);
+    expect(failed).toBe(1);
+  });
+
+  it("imports nothing from an unrecognised format", () => {
+    const r = parseAny("this is not a bibliography");
+    expect(r.format).toBe("unknown");
+    expect(r.refs).toHaveLength(0);
+  });
+
+  it("round-trips through RIS export", () => {
+    const out = toRis([{ title: "T", authors: "Smith, J.", year: "2020",
+      publication: "J", doi: "10.1/x", kind: "article" }]);
+    expect(out).toMatch(/^TY {2}- JOUR/m);
+    expect(out).toMatch(/^TI {2}- T$/m);
+    expect(out).toMatch(/^ER {2}- $/m);
+    expect(parseRis(out).refs[0].title).toBe("T");
+  });
+
+  it("exports valid CSL JSON", () => {
+    const parsed = JSON.parse(toCslJson([{ id: 1, title: "T", authors: "Jane Smith",
+      year: "2020", kind: "book" }]));
+    expect(parsed[0].type).toBe("book");
+    expect(parsed[0].author[0]).toEqual({ family: "Smith", given: "Jane" });
+  });
+});

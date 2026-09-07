@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --midnight:#17243A; --current:#176B73; --coral:#D96C59; --paper:#F7F4EE;
+          --ink:#292B30; --line:#e2dcd1; --muted:#61708a; }
+  body { width: 340px; margin: 0; padding: 16px; background: var(--paper); color: var(--ink);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif; }
+  h1 { font-size: 15px; margin: 0 0 12px; color: var(--midnight); }
+  label { display: block; font-size: 12px; font-weight: 600; margin: 10px 0 4px; }
+  input, textarea, select { width: 100%; box-sizing: border-box; padding: 8px 10px;
+    border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 13px; }
+  button { width: 100%; padding: 11px; margin-top: 12px; border: 0; border-radius: 8px;
+    background: var(--coral); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--midnight);
+    border: 1px solid var(--line); }
+  .muted { color: var(--muted); font-size: 12px; }
+  .ok { color: var(--current); font-weight: 600; }
+  .err { color: #A8412F; }
+</style>
+</head>
+<body>
+  <h1>Save to your library</h1>
+  <div id="setup" hidden>
+    <p class="muted">Paste an access token from
+      <a href="https://semanticauthoring.org/app/tokens" target="_blank">/app/tokens</a>.
+      It needs the <strong>write</strong> scope.</p>
+    <label for="token">Access token</label>
+    <input id="token" type="password" placeholder="sa_pat_…">
+    <button id="saveToken">Save token</button>
+  </div>
+  <div id="form" hidden>
+    <label for="title">Title</label>
+    <input id="title">
+    <label for="authors">Authors</label>
+    <input id="authors">
+    <label for="doi">DOI</label>
+    <input id="doi" placeholder="detected automatically where present">
+    <label for="tags">Tags</label>
+    <input id="tags" placeholder="embodiment, chapter 2">
+    <button id="save">Save to library</button>
+    <button id="forget" class="secondary">Change token</button>
+    <p id="status" class="muted"></p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

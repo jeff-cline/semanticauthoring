@@ -1002,3 +1002,103 @@ CREATE TABLE IF NOT EXISTS embeddings (
 CREATE INDEX IF NOT EXISTS embeddings_owner_idx ON embeddings(owner_id);
 CREATE INDEX IF NOT EXISTS embeddings_vec_idx ON embeddings
   USING hnsw (embedding vector_cosine_ops);
+
+-- ═══ THIRD-PARTY RESPONSE CACHE ═════════════════════════════════════════════
+-- Respect the funders' and indexes' rate limits, and make repeat lookups fast.
+CREATE TABLE IF NOT EXISTS api_cache (
+  id         SERIAL PRIMARY KEY,
+  cache_key  TEXT NOT NULL UNIQUE,
+  provider   TEXT NOT NULL DEFAULT '',
+  payload    TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS api_cache_expiry_idx ON api_cache(expires_at);
+
+-- ═══ NOTIFICATIONS ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS notifications (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL,
+    -- citation|deadline|review|advising|milestone|group|system|retraction
+  title       TEXT NOT NULL,
+  body        TEXT NOT NULL DEFAULT '',
+  href        TEXT NOT NULL DEFAULT '',
+  read_at     TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS notifications_owner_idx ON notifications(owner_id, read_at);
+
+CREATE TABLE IF NOT EXISTS notification_prefs (
+  owner_id       INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  citations      BOOLEAN NOT NULL DEFAULT TRUE,
+  deadlines      BOOLEAN NOT NULL DEFAULT TRUE,
+  reviews        BOOLEAN NOT NULL DEFAULT TRUE,
+  advising       BOOLEAN NOT NULL DEFAULT TRUE,
+  groups         BOOLEAN NOT NULL DEFAULT TRUE,
+  email_digest   TEXT NOT NULL DEFAULT 'weekly',  -- off|daily|weekly
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ═══ CITATION WATCH ═════════════════════════════════════════════════════════
+-- Track a DOI (usually the scholar's own work, or a key paper) and report when
+-- the citation count moves, or when a retraction appears.
+CREATE TABLE IF NOT EXISTS citation_watch (
+  id            SERIAL PRIMARY KEY,
+  owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  doi           TEXT NOT NULL,
+  title         TEXT NOT NULL DEFAULT '',
+  label         TEXT NOT NULL DEFAULT 'mine',   -- mine|tracked
+  last_count    INTEGER NOT NULL DEFAULT 0,
+  last_checked_at TIMESTAMPTZ,
+  is_retracted  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, doi)
+);
+
+-- ═══ COLLABORATION ══════════════════════════════════════════════════════════
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS open_to_collaboration BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS seeking TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS skills_offered TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS methodologies TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS populations TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS remote_ok BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS collaboration_note TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS collaboration_requests (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  seeking     TEXT NOT NULL DEFAULT '',
+  topics      TEXT NOT NULL DEFAULT '',
+  methods     TEXT NOT NULL DEFAULT '',
+  timeline    TEXT NOT NULL DEFAULT '',
+  authorship  TEXT NOT NULL DEFAULT '',
+  remote_ok   BOOLEAN NOT NULL DEFAULT TRUE,
+  status      TEXT NOT NULL DEFAULT 'open',   -- open|filled|closed
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS collab_owner_idx ON collaboration_requests(owner_id);
+
+-- ═══ JOURNAL SHORTLIST ══════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS journal_shortlist (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  submission_id INTEGER REFERENCES submissions(id) ON DELETE SET NULL,
+  name         TEXT NOT NULL,
+  publisher    TEXT NOT NULL DEFAULT '',
+  issn         TEXT NOT NULL DEFAULT '',
+  provider     TEXT NOT NULL DEFAULT 'openalex',
+  provider_id  TEXT NOT NULL DEFAULT '',
+  is_oa        BOOLEAN,
+  works_count  INTEGER,
+  url          TEXT NOT NULL DEFAULT '',
+  note         TEXT NOT NULL DEFAULT '',
+  status       TEXT NOT NULL DEFAULT 'considering',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS journal_shortlist_owner_idx ON journal_shortlist(owner_id);

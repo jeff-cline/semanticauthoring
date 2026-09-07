@@ -95,12 +95,37 @@ subscribers with double opt-in, testimonials, share links.
 **Programmatic** — token-authenticated v1 API and an [MCP server](mcp/README.md) with 12
 tools, 4 resources, and 4 prompts.
 
-## Not built yet
+**Institutional** — OIDC single sign-on, institution management, faculty dashboards with
+consent-based advising.
 
-Institutional SSO and licensing, faculty dashboards, grant and conference discovery,
-peer-review management, research analytics, mobile app, browser extension, Word/Docs and
-Overleaf integrations, Zenodo and OSF deposit, pgvector semantic search, and AI-assisted
-synthesis. The architecture leaves room for all of it; none of it is claimed as present.
+**Discovery** — literature mapping and potential research gaps, journal discovery, grant
+search across Grants.gov, NIH RePORTER, and NSF, collaboration matching, citation watch with
+retraction alerts, scholarly presence audit.
+
+**Interchange** — import by DOI, PubMed ID, or arXiv ID; BibTeX, RIS, and CSL JSON in and out;
+LaTeX export for Overleaf; Word export for the Embodied Inquiry Journal; a Chromium browser
+extension for saving what you are reading.
+
+## Deliberately not built
+
+**SAML.** OIDC only. SAML needs XML canonicalisation and signature validation, and a
+half-correct implementation of that is a security hole rather than a feature.
+
+**A native mobile binary.** The mobile experience is a PWA — installable, offline-capable,
+with capture that queues on-device and replays on reconnect. A native build needs Xcode, the
+Android SDK, signing certificates, and store accounts.
+
+**AI-written scholarship.** AI here surfaces, organises, compares, and audits. It does not
+draft reflection or argument, and everything it touches is marked.
+
+**Impact factors, acceptance rates, and indexing claims.** Proprietary or unverifiable from
+public data. Inventing them would be worse than omitting them.
+
+## Still open
+
+Google Docs and Word round-trip editing (export exists; live sync would need OAuth against
+each provider), Zotero library sync, conference discovery, and institutional licensing and
+billing.
 
 ## Research integrity
 

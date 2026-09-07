@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { Mark } from "@/components/Brand";
+import CommandPalette from "@/components/CommandPalette";
+import { unreadCount } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
@@ -16,9 +18,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (user.mustChangePassword) redirect("/change-password");
 
   const god = user.role === "god";
+  const unread = await unreadCount(user.id).catch(() => 0);
 
   return (
     <div className="app">
+      <CommandPalette />
       <nav className="sidebar" aria-label="Workspace">
         <Link href="/app" className="brand" style={{ padding: "4px 24px 18px", fontSize: ".82rem" }}>
           <Mark size={26} /> Semantic Authoring
@@ -33,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="grouplabel">Read</div>
         <Link href="/app/library">Research library</Link>
+        <Link href="/app/import">Import references</Link>
         <Link href="/app/reading">My reading</Link>
         <Link href="/app/courses">Courses</Link>
         <Link href="/app/calendar">Calendar</Link>
@@ -42,6 +47,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/app/map">Knowledge map</Link>
         <Link href="/app/connect">Connections</Link>
         <Link href="/app/related">Find related</Link>
+        <Link href="/app/literature">Literature map</Link>
+        <Link href="/app/collaborate">Collaborate</Link>
         <Link href="/app/life-map">Life Map</Link>
         <Link href="/app/groups">Groups</Link>
 
@@ -65,9 +72,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/app/pipeline">Publication pipeline</Link>
         <Link href="/app/deposit">Repository deposit</Link>
         <Link href="/app/grants">Grants</Link>
+        <Link href="/app/journals">Journal discovery</Link>
+        <Link href="/app/readiness">Publication readiness</Link>
+        <Link href="/app/presence">Scholarly presence</Link>
 
         <div className="grouplabel">Celebrate</div>
         <Link href="/app/timeline">Milestones</Link>
+        <Link href="/app/citations">Citation watch</Link>
 
         <div className="grouplabel">Relationships</div>
         <Link href="/app/contacts">My contacts</Link>
@@ -84,6 +95,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
 
         <div className="grouplabel">Account</div>
+        <Link href="/app/notifications">
+          Notifications{unread > 0 ? ` (${unread})` : ""}
+        </Link>
         <Link href="/app/export">Export your work</Link>
         <Link href="/app/tokens">Access tokens</Link>
         <Link href="/change-password">Change password</Link>

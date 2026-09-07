@@ -62,6 +62,12 @@ sudo -u postgres pg_dump -s "$DB" > "$WORK/schema.sql" 2>/dev/null || true
 # Restore into a scratch database and compare table and row counts against the
 # live one. This is the step that turns a file into a backup.
 echo "→ verifying by restoring into a scratch database"
+# pg_restore runs as the postgres user, so it needs to reach the dump. The
+# directory is made traversable but not listable, and the dump is handed to
+# postgres with 0600 — nobody else on the box can read it.
+chmod 711 "$WORK"
+chown postgres:postgres "$WORK/db.dump"
+chmod 600 "$WORK/db.dump"
 SCRATCH="sa_verify_$$"
 sudo -u postgres createdb "$SCRATCH" || fail "could not create scratch database"
 cleanup_scratch() { sudo -u postgres dropdb --if-exists "$SCRATCH" >/dev/null 2>&1 || true; }
@@ -88,6 +94,8 @@ REST_USERS=$(sudo -u postgres psql -tA -d "$SCRATCH" -c "SELECT count(*) FROM us
   || fail "restore mismatch: live has $LIVE_USERS users, restore has $REST_USERS"
 
 cleanup_scratch
+chown root:root "$WORK/db.dump"
+chmod 600 "$WORK/db.dump"
 echo "   verified: $REST_TABLES tables, $REST_USERS users restored cleanly"
 
 # ── package, encrypt, checksum ───────────────────────────────────────────────

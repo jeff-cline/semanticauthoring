@@ -735,3 +735,86 @@ CREATE TABLE IF NOT EXISTS reading_quotes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS reading_quotes_entry_idx ON reading_quotes(entry_id);
+
+-- ═══ EMBODIED INQUIRY JOURNAL — ITPS 7182 ═══════════════════════════════════
+--
+-- Course-specific reflective journal. The four required questions are fixed in
+-- the schema and in the UI because the syllabus specifies them; they are not
+-- configurable and cannot be removed.
+
+CREATE TABLE IF NOT EXISTS inquiry_settings (
+  owner_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  scholar_name TEXT NOT NULL DEFAULT '',
+  course_title TEXT NOT NULL DEFAULT 'Origins of Somatic Psychology',
+  course_code  TEXT NOT NULL DEFAULT 'ITPS 7182',
+  term         TEXT NOT NULL DEFAULT 'Fall 2026',
+  instructor   TEXT NOT NULL DEFAULT '',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS inquiry_weeks (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  week         INTEGER NOT NULL,
+  theme        TEXT NOT NULL DEFAULT '',
+  readings     TEXT NOT NULL DEFAULT '',      -- one per line
+  discussion   TEXT NOT NULL DEFAULT '',
+  instruction  TEXT NOT NULL DEFAULT '',
+  kind         TEXT NOT NULL DEFAULT 'reading', -- reading|experiential|practice
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, week)
+);
+
+CREATE TABLE IF NOT EXISTS inquiry_entries (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  week         INTEGER NOT NULL,
+  entry_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+  reading_ref  TEXT NOT NULL DEFAULT '',
+  context      TEXT NOT NULL DEFAULT 'Reading',
+    -- Reading|Movement Practice|Class Experience|Meditation|Other
+
+  -- ARRIVE IN YOUR BODY
+  sensations   TEXT NOT NULL DEFAULT '',
+  location     TEXT NOT NULL DEFAULT '',
+  emotions     TEXT NOT NULL DEFAULT '',
+  breath_body  TEXT NOT NULL DEFAULT '',
+  precognitive TEXT NOT NULL DEFAULT '',
+
+  -- REQUIRED EMBODIED INQUIRY (syllabus-mandated; never removed)
+  noticed      TEXT NOT NULL DEFAULT '',
+  changed      TEXT NOT NULL DEFAULT '',
+  surprised    TEXT NOT NULL DEFAULT '',
+  alive_constricted TEXT NOT NULL DEFAULT '',
+
+  -- READING → BODY CONNECTION
+  trigger_author  TEXT NOT NULL DEFAULT '',
+  trigger_concept TEXT NOT NULL DEFAULT '',
+  trigger_quote   TEXT NOT NULL DEFAULT '',
+  trigger_page    TEXT NOT NULL DEFAULT '',
+  body_where      TEXT NOT NULL DEFAULT '',
+  accompaniment   TEXT NOT NULL DEFAULT '',
+  meaning         TEXT NOT NULL DEFAULT '',
+  deepens         TEXT NOT NULL DEFAULT '',
+
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS inquiry_entries_owner_idx ON inquiry_entries(owner_id, week);
+
+CREATE TABLE IF NOT EXISTS inquiry_synthesis (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  week         INTEGER NOT NULL,
+  patterns     TEXT NOT NULL DEFAULT '',
+  resonance    TEXT NOT NULL DEFAULT '',
+  resistance   TEXT NOT NULL DEFAULT '',
+  shift        TEXT NOT NULL DEFAULT '',
+  influence    TEXT NOT NULL DEFAULT '',
+  carrying     TEXT NOT NULL DEFAULT '',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, week)
+);

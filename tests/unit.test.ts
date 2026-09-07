@@ -384,3 +384,75 @@ describe("APA 7", () => {
       publication: "J", kind: "journal_article" })).toEqual([]);
   });
 });
+
+// ── Embodied Inquiry Journal ─────────────────────────────────────────────────
+import { REQUIRED, ARRIVE, CONNECTION, SYNTHESIS, CONTEXTS, findPatterns, PRELOADED_WEEKS }
+  from "../src/lib/inquiry";
+
+describe("embodied inquiry — syllabus requirements", () => {
+  it("carries exactly the four required questions, in order", () => {
+    expect(REQUIRED.map((r) => r.label)).toEqual([
+      "What did I notice?",
+      "What changed?",
+      "What surprised me?",
+      "What felt alive, constricted, unfamiliar, or meaningful?",
+    ]);
+  });
+  it("carries the five arrival prompts", () => {
+    expect(ARRIVE).toHaveLength(5);
+    expect(ARRIVE[0].label).toMatch(/sensations are present/i);
+    expect(ARRIVE[4].label).toMatch(/before I put meaning to it/i);
+  });
+  it("asks the meaning-making question the rubric rewards", () => {
+    const deepens = CONNECTION.find((c) => c.key === "deepens");
+    expect(deepens?.label).toMatch(/support, complicate, challenge, or deepen/i);
+  });
+  it("carries the six weekly synthesis questions", () => {
+    expect(SYNTHESIS).toHaveLength(6);
+    expect(SYNTHESIS.map((s) => s.key)).toEqual(
+      ["patterns", "resonance", "resistance", "shift", "influence", "carrying"]);
+  });
+  it("offers the five practice contexts", () => {
+    expect([...CONTEXTS]).toEqual(
+      ["Reading", "Movement Practice", "Class Experience", "Meditation", "Other"]);
+  });
+  it("preloads only the weeks actually confirmed from the syllabus", () => {
+    expect(PRELOADED_WEEKS.sort((a, b) => a - b)).toEqual([2, 5, 9, 12]);
+  });
+});
+
+describe("pattern surfacing organises but never writes", () => {
+  const entries = [
+    { week: 1, entry_date: "2026-09-01", noticed: "My chest was tight while reading Johnson.",
+      changed: "The tightness in my chest eased.", surprised: "", alive_constricted: "",
+      emotions: "anxious", body_where: "chest", meaning: "", deepens: "" },
+    { week: 1, entry_date: "2026-09-03", noticed: "Again my chest tightened at the same idea.",
+      changed: "", surprised: "", alive_constricted: "", emotions: "anxious calm",
+      body_where: "chest throat", meaning: "", deepens: "" },
+  ];
+  const p = findPatterns(entries);
+
+  it("counts recurring words from the scholar's own text", () => {
+    expect(p.recurring.some((r) => r.word === "chest")).toBe(true);
+    expect(p.entryCount).toBe(2);
+  });
+  it("surfaces body locations the scholar named", () => {
+    expect(p.bodyLocations.map((b) => b.word)).toContain("chest");
+  });
+  it("surfaces emotions the scholar named", () => {
+    expect(p.emotions.map((e) => e.word)).toContain("anxious");
+  });
+  it("quotes the scholar's own sentences verbatim rather than paraphrasing", () => {
+    expect(p.echoes.length).toBeGreaterThan(0);
+    for (const e of p.echoes) {
+      const source = entries.map((x) => Object.values(x).join(" ")).join(" ");
+      expect(source).toContain(e.sentence.replace(/\.$/, "").slice(0, 30));
+    }
+  });
+  it("returns nothing at all when there is nothing written", () => {
+    const empty = findPatterns([]);
+    expect(empty.entryCount).toBe(0);
+    expect(empty.recurring).toHaveLength(0);
+    expect(empty.echoes).toHaveLength(0);
+  });
+});

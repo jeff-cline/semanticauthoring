@@ -28,6 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/app">Dashboard</Link>
         <Link href="/app/capture">Capture thought</Link>
         <Link href="/app/journal">Daily journal</Link>
+        <Link href="/app/inquiry">Embodied Inquiry</Link>
 
         <div className="grouplabel">Read</div>
         <Link href="/app/library">Research library</Link>

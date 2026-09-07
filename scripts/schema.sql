@@ -818,3 +818,187 @@ CREATE TABLE IF NOT EXISTS inquiry_synthesis (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (owner_id, week)
 );
+
+-- ═══ INSTITUTIONS AND SSO ═══════════════════════════════════════════════════
+--
+-- OIDC only. SAML is deliberately not implemented: it needs XML signature
+-- validation, and a half-correct signature check is worse than none. Every
+-- modern IdP that matters (Entra, Okta, Google Workspace, Keycloak) speaks OIDC.
+
+CREATE TABLE IF NOT EXISTS institutions (
+  id            SERIAL PRIMARY KEY,
+  name          TEXT NOT NULL,
+  slug          TEXT NOT NULL UNIQUE,
+  ror           TEXT NOT NULL DEFAULT '',      -- Research Organization Registry id
+  email_domains TEXT NOT NULL DEFAULT '',      -- comma separated, e.g. "ciis.edu"
+  -- OIDC configuration, supplied by the institution's IT team
+  oidc_issuer   TEXT NOT NULL DEFAULT '',
+  oidc_client_id TEXT NOT NULL DEFAULT '',
+  oidc_client_secret TEXT NOT NULL DEFAULT '', -- encrypted at rest
+  oidc_enabled  BOOLEAN NOT NULL DEFAULT FALSE,
+  auto_join     BOOLEAN NOT NULL DEFAULT TRUE, -- matching email domain joins automatically
+  default_tier  TEXT NOT NULL DEFAULT 'doctoral',
+  seats         INTEGER NOT NULL DEFAULT 0,    -- 0 = unlimited
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS institution_members (
+  id             SERIAL PRIMARY KEY,
+  institution_id INTEGER NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+  user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role           TEXT NOT NULL DEFAULT 'scholar', -- scholar|faculty|admin
+  program        TEXT NOT NULL DEFAULT '',
+  cohort         TEXT NOT NULL DEFAULT '',
+  joined_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (institution_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS inst_members_user_idx ON institution_members(user_id);
+
+-- Short-lived OIDC state, so a login cannot be replayed or cross-linked.
+CREATE TABLE IF NOT EXISTS oidc_states (
+  id             SERIAL PRIMARY KEY,
+  state          TEXT NOT NULL UNIQUE,
+  nonce          TEXT NOT NULL,
+  code_verifier  TEXT NOT NULL,
+  institution_id INTEGER NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+  redirect_to    TEXT NOT NULL DEFAULT '/app',
+  expires_at     TIMESTAMPTZ NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS institution_id INTEGER REFERENCES institutions(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sso_subject TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sso_issuer TEXT NOT NULL DEFAULT '';
+
+-- ═══ ADVISING (faculty dashboards) ══════════════════════════════════════════
+--
+-- An advising relationship requires the scholar's consent. Faculty see progress
+-- signals and what has been shared with them — never the private workspace.
+
+CREATE TABLE IF NOT EXISTS advising (
+  id           SERIAL PRIMARY KEY,
+  faculty_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scholar_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  invite_email TEXT NOT NULL DEFAULT '',
+  invite_token TEXT UNIQUE,
+  role         TEXT NOT NULL DEFAULT 'advisor', -- chair|advisor|committee|reader
+  status       TEXT NOT NULL DEFAULT 'invited', -- invited|active|declined|ended
+  note         TEXT NOT NULL DEFAULT '',
+  accepted_at  TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS advising_faculty_idx ON advising(faculty_id);
+CREATE INDEX IF NOT EXISTS advising_scholar_idx ON advising(scholar_id);
+
+-- ═══ PEER REVIEW MANAGEMENT ═════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS review_rounds (
+  id             SERIAL PRIMARY KEY,
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  submission_id  INTEGER REFERENCES submissions(id) ON DELETE SET NULL,
+  document_id    INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  title          TEXT NOT NULL,
+  round_number   INTEGER NOT NULL DEFAULT 1,
+  blinding       TEXT NOT NULL DEFAULT 'single', -- open|single|double
+  due_on         DATE,
+  status         TEXT NOT NULL DEFAULT 'open',   -- open|closed
+  brief          TEXT NOT NULL DEFAULT '',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS review_rounds_owner_idx ON review_rounds(owner_id);
+
+CREATE TABLE IF NOT EXISTS review_assignments (
+  id           SERIAL PRIMARY KEY,
+  round_id     INTEGER NOT NULL REFERENCES review_rounds(id) ON DELETE CASCADE,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reviewer_name  TEXT NOT NULL DEFAULT '',
+  reviewer_email TEXT NOT NULL,
+  token        TEXT NOT NULL UNIQUE,
+  status       TEXT NOT NULL DEFAULT 'invited',
+    -- invited|accepted|declined|submitted|withdrawn
+  recommendation TEXT NOT NULL DEFAULT '',
+    -- accept|minor_revisions|major_revisions|reject|unsure
+  summary      TEXT NOT NULL DEFAULT '',
+  strengths    TEXT NOT NULL DEFAULT '',
+  concerns     TEXT NOT NULL DEFAULT '',
+  confidential TEXT NOT NULL DEFAULT '',   -- to the author's eyes only when open
+  expires_at   TIMESTAMPTZ NOT NULL,
+  submitted_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS review_assign_round_idx ON review_assignments(round_id);
+
+-- ═══ GRANTS ═════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS grant_saved (
+  id           SERIAL PRIMARY KEY,
+  owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider     TEXT NOT NULL,               -- grants_gov|nih|nsf
+  provider_id  TEXT NOT NULL,
+  title        TEXT NOT NULL,
+  agency       TEXT NOT NULL DEFAULT '',
+  url          TEXT NOT NULL DEFAULT '',
+  close_date   DATE,
+  amount       TEXT NOT NULL DEFAULT '',
+  summary      TEXT NOT NULL DEFAULT '',
+  status       TEXT NOT NULL DEFAULT 'watching', -- watching|preparing|submitted|awarded|declined
+  note         TEXT NOT NULL DEFAULT '',
+  retrieved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, provider, provider_id)
+);
+CREATE INDEX IF NOT EXISTS grant_saved_owner_idx ON grant_saved(owner_id);
+
+-- ═══ REPOSITORY DEPOSIT (Zenodo / OSF) ══════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS deposits (
+  id             SERIAL PRIMARY KEY,
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+  document_id    INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  repository     TEXT NOT NULL DEFAULT 'zenodo',   -- zenodo|osf
+  sandbox        BOOLEAN NOT NULL DEFAULT TRUE,
+  title          TEXT NOT NULL,
+  description    TEXT NOT NULL DEFAULT '',
+  creators       TEXT NOT NULL DEFAULT '',
+  keywords       TEXT NOT NULL DEFAULT '',
+  upload_type    TEXT NOT NULL DEFAULT 'publication',
+  license        TEXT NOT NULL DEFAULT 'cc-by-4.0',
+  status         TEXT NOT NULL DEFAULT 'draft',
+    -- draft|prepared|deposited|published|failed
+  remote_id      TEXT NOT NULL DEFAULT '',
+  doi            TEXT NOT NULL DEFAULT '',
+  remote_url     TEXT NOT NULL DEFAULT '',
+  last_error     TEXT NOT NULL DEFAULT '',
+  published_at   TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS deposits_owner_idx ON deposits(owner_id);
+
+-- ═══ VECTOR SEARCH ══════════════════════════════════════════════════════════
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- One index across everything a scholar owns, so "what else relates to this?"
+-- can be answered without querying a dozen tables.
+CREATE TABLE IF NOT EXISTS embeddings (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL,
+  entity_id   INTEGER NOT NULL,
+  content     TEXT NOT NULL DEFAULT '',
+  embedding   vector(384),
+  model       TEXT NOT NULL DEFAULT '',   -- which embedder produced this
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (owner_id, entity_type, entity_id)
+);
+CREATE INDEX IF NOT EXISTS embeddings_owner_idx ON embeddings(owner_id);
+CREATE INDEX IF NOT EXISTS embeddings_vec_idx ON embeddings
+  USING hnsw (embedding vector_cosine_ops);

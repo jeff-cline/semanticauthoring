@@ -19,6 +19,19 @@ export const metadata: Metadata = {
   alternates: {
     types: { "application/rss+xml": "/feed.xml" },
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Authoring",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport = {
+  themeColor: "#17243A",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +49,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(org) }} />
+        {/* Register the service worker so the app is installable and capture
+            survives losing signal. */}
+        <script
+          dangerouslySetInnerHTML={{ __html:
+            `if('serviceWorker' in navigator){window.addEventListener('load',function(){` +
+            `navigator.serviceWorker.register('/sw.js').catch(function(){})})}` }} />
         {children}
       </body>
     </html>

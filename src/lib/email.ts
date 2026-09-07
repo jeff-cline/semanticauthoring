@@ -242,3 +242,43 @@ export function passwordResetEmail(to: string, name: string, url: string) {
        this message — your password has not changed.</p>`,
   );
 }
+
+export function advisingInviteEmail(
+  to: string, faculty: string, role: string, url: string,
+) {
+  return sendTransactional(
+    to,
+    `${faculty} would like to advise your work`,
+    "An advising invitation",
+    `<p><strong>${esc(faculty)}</strong> has invited you to connect on Semantic Authoring
+        as your <strong>${esc(role)}</strong>.</p>
+     <p style="color:#41506a">Accepting shares your <em>progress signals</em> — chapter status,
+        deadlines, milestones — and anything you deliberately send for review. It does
+        <strong>not</strong> give access to your research library, journal, Life Map, or
+        drafts.</p>
+     <p style="margin:26px 0">
+       <a href="${url}" style="background:#5A6B80;color:#fff;text-decoration:none;
+          padding:12px 22px;border-radius:8px;display:inline-block">Review the invitation</a>
+     </p>
+     <p style="color:#61708a;font-size:13px">You can decline, and you can end it later.</p>`,
+  );
+}
+
+export function reviewAssignmentEmail(
+  to: string, author: string, title: string, url: string, due?: string, blinding?: string,
+) {
+  return sendTransactional(
+    to,
+    `Review request — ${title}`,
+    "A peer review request",
+    `<p>You have been asked to review <strong>${esc(title)}</strong>${
+      blinding === "double" ? "" : ` by ${esc(author)}`}.</p>
+     ${due ? `<p style="color:#41506a">Requested by <strong>${esc(due)}</strong>.</p>` : ""}
+     <p style="margin:26px 0">
+       <a href="${url}" style="background:#176B73;color:#fff;text-decoration:none;
+          padding:12px 22px;border-radius:8px;display:inline-block">Open the manuscript</a>
+     </p>
+     <p style="color:#61708a;font-size:13px">
+       No account is needed. You can decline, and the link opens only this manuscript.</p>`,
+  );
+}

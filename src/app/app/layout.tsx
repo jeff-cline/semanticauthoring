@@ -27,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="grouplabel">Workspace</div>
         <Link href="/app">Dashboard</Link>
         <Link href="/app/capture">Capture thought</Link>
+        <Link href="/app/mobile">Mobile capture</Link>
         <Link href="/app/journal">Daily journal</Link>
         <Link href="/app/inquiry">Embodied Inquiry</Link>
 
@@ -40,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/app/questions">Questions</Link>
         <Link href="/app/map">Knowledge map</Link>
         <Link href="/app/connect">Connections</Link>
+        <Link href="/app/related">Find related</Link>
         <Link href="/app/life-map">Life Map</Link>
         <Link href="/app/groups">Groups</Link>
 
@@ -54,11 +56,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="grouplabel">Review</div>
         <Link href="/app/review">Mentor &amp; committee</Link>
+        <Link href="/app/peer-review">Peer review</Link>
+        <Link href="/app/faculty">Advisees</Link>
 
         <div className="grouplabel">Publish</div>
         <Link href="/app/profile">Public profile</Link>
         <Link href="/app/publications">Publications</Link>
         <Link href="/app/pipeline">Publication pipeline</Link>
+        <Link href="/app/deposit">Repository deposit</Link>
+        <Link href="/app/grants">Grants</Link>
 
         <div className="grouplabel">Celebrate</div>
         <Link href="/app/timeline">Milestones</Link>
@@ -73,6 +79,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <div className="grouplabel">Administration</div>
             <Link href="/app/leads">Leads CRM</Link>
             <Link href="/app/integrations">Integrations</Link>
+            <Link href="/app/institutions">Institutions</Link>
           </>
         )}
 

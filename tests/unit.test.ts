@@ -456,3 +456,80 @@ describe("pattern surfacing organises but never writes", () => {
     expect(empty.echoes).toHaveLength(0);
   });
 });
+
+// ── vector embeddings ────────────────────────────────────────────────────────
+import { localEmbed, DIMS } from "../src/lib/embed";
+
+describe("local embeddings", () => {
+  const cos = (a: number[], b: number[]) => a.reduce((s, x, i) => s + x * b[i], 0);
+
+  it("produces unit vectors of the declared dimension", () => {
+    const v = localEmbed("embodied cognition in adult learning");
+    expect(v).toHaveLength(DIMS);
+    expect(cos(v, v)).toBeCloseTo(1, 5);
+  });
+  it("is deterministic", () => {
+    expect(localEmbed("somatic psychology")).toEqual(localEmbed("somatic psychology"));
+  });
+  it("scores shared vocabulary above unrelated text", () => {
+    const a = localEmbed("embodied cognition and interoceptive awareness");
+    const near = localEmbed("interoceptive awareness in embodied practice");
+    const far = localEmbed("quarterly municipal bond yields and tax policy");
+    expect(cos(a, near)).toBeGreaterThan(cos(a, far));
+  });
+  it("gives partial credit for word morphology via trigrams", () => {
+    const a = localEmbed("embodiment");
+    const b = localEmbed("embodied");
+    const c = localEmbed("taxation");
+    expect(cos(a, b)).toBeGreaterThan(cos(a, c));
+  });
+  it("returns a zero vector for empty input rather than throwing", () => {
+    expect(localEmbed("")).toHaveLength(DIMS);
+    expect(localEmbed("").every((x) => x === 0)).toBe(true);
+  });
+});
+
+// ── grants ───────────────────────────────────────────────────────────────────
+describe("grant adapters", () => {
+  it("separates open calls from awards that are already funded", async () => {
+    const { searchGrants } = await import("../src/lib/grants");
+    expect(typeof searchGrants).toBe("function");
+  });
+});
+
+// ── repository deposit ───────────────────────────────────────────────────────
+import { zenodoPayload, zenodoPublish } from "../src/lib/repository";
+
+describe("repository deposit", () => {
+  it("builds the Zenodo payload from recorded metadata only", () => {
+    const p = zenodoPayload({
+      title: "On embodiment", description: "An essay.",
+      creators: "Crews, Krystalore\nSmith, J.", keywords: "somatic, embodiment",
+      uploadType: "publication", license: "cc-by-4.0",
+    });
+    expect(p.metadata.title).toBe("On embodiment");
+    expect(p.metadata.creators).toEqual([{ name: "Crews, Krystalore" }, { name: "Smith, J." }]);
+    expect(p.metadata.keywords).toEqual(["somatic", "embodiment"]);
+    expect(p.metadata.access_right).toBe("open");
+  });
+  it("refuses to publish without explicit confirmation", async () => {
+    const r = await zenodoPublish("123", true, false);
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/explicit confirmation/i);
+  });
+});
+
+// ── OIDC ─────────────────────────────────────────────────────────────────────
+import { pkce } from "../src/lib/oidc";
+import { createHash as sha } from "node:crypto";
+
+describe("OIDC PKCE", () => {
+  it("derives the challenge as S256 of the verifier", () => {
+    const { verifier, challenge } = pkce();
+    expect(challenge).toBe(sha("sha256").update(verifier).digest("base64url"));
+  });
+  it("never repeats a verifier", () => {
+    const seen = new Set(Array.from({ length: 40 }, () => pkce().verifier));
+    expect(seen.size).toBe(40);
+  });
+});

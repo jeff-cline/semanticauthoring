@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { login, currentUser } from "@/lib/auth";
+import { q } from "@/lib/db";
 import { Mark } from "@/components/Brand";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,10 @@ export default async function Login({
   searchParams,
 }: { searchParams: Promise<{ error?: string; next?: string }> }) {
   const { error } = await searchParams;
+
+  const institutions = await q<any>(
+    `SELECT slug, name FROM institutions WHERE oidc_enabled = TRUE ORDER BY name`)
+    .catch(() => []);
 
   const existing = await currentUser().catch(() => null);
   if (existing) redirect(existing.mustChangePassword ? "/change-password" : "/app");
@@ -38,7 +43,22 @@ export default async function Login({
         </div>
         <form action={submit} className="card">
           <h1 style={{ fontSize: "1.5rem" }}>Sign in</h1>
-          {error && <p className="error">Those details didn&rsquo;t match. Please try again.</p>}
+          {error && (
+            <p className="error">
+              {({
+                sso_unknown: "That institution is not set up for single sign-on.",
+                sso_discovery: "We could not reach your institution's identity provider.",
+                sso_denied: "Sign-in was cancelled.",
+                sso_expired: "That sign-in attempt expired. Please try again.",
+                sso_token: "Your institution's identity provider refused the exchange.",
+                sso_invalid_token: "The identity token failed verification, so sign-in was refused.",
+                sso_no_email: "Your institution did not release an email address.",
+                sso_domain: "That account's email domain is not permitted for this institution.",
+                sso_no_account: "No account exists here yet, and this institution does not create them automatically.",
+              } as Record<string, string>)[error]
+                ?? "Those details didn't match. Please try again."}
+            </p>
+          )}
           <div className="field">
             <label htmlFor="email">Email</label>
             <input id="email" name="email" type="email" required autoComplete="username" />
@@ -52,6 +72,20 @@ export default async function Login({
           <p style={{ textAlign: "center", marginTop: 16, marginBottom: 0 }}>
             <Link href="/forgot" style={{ fontSize: ".9rem" }}>Forgot your password?</Link>
           </p>
+          {institutions.length > 0 && (
+            <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+              <p style={{ color: "var(--muted)", fontSize: ".85rem", textAlign: "center",
+                          marginTop: 0 }}>
+                Or sign in through your institution
+              </p>
+              {institutions.map((i: any) => (
+                <a key={i.slug} href={`/sso/${i.slug}`} className="btn btn-secondary"
+                   style={{ display: "block", textAlign: "center", marginBottom: 8 }}>
+                  {i.name}
+                </a>
+              ))}
+            </div>
+          )}
         </form>
         <p style={{ textAlign: "center", marginTop: 20 }}>
           <Link href="/" style={{ color: "#8fa3c0", fontSize: ".9rem" }}>← Back to site</Link>

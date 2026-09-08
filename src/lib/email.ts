@@ -17,6 +17,22 @@ import { sendSmtp, smtpConfigured } from "./mailer";
 
 const NOTIFY_TO = process.env.NOTIFY_TO ?? "";
 
+/**
+ * Shown only when a message goes out over the cold-outreach mailboxes, because
+ * the From address will be an unrelated domain the recipient has never seen.
+ * Without this, a password reset reads as a phishing attempt and gets deleted —
+ * which is a worse outcome than it not arriving, since the user assumes the
+ * reset is broken and stops trying.
+ */
+const FALLBACK_NOTICE = `
+<div style="background:#FDF8EE;border:1px solid #C6A15B;border-radius:8px;
+            padding:12px 14px;margin:0 0 20px;font-size:13px;color:#6b5520">
+  <strong>About this sender.</strong> This message is from Semantic Authoring
+  (semanticauthoring.org). It was delivered through our mail relay, so the
+  sending address may look unfamiliar. We will never ask for your password by
+  email — if you did not request this, simply ignore it.
+</div>`;
+
 const shell = (title: string, inner: string) => `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
             background:#F7F4EE;color:#292B30;padding:32px">
@@ -64,7 +80,11 @@ export async function sendTransactional(
              degraded: smtpConfigured(), primaryError: smtpError };
   }
 
-  const fallback = await coreEmail({ to, subject, html, provider: "zapmail" });
+  // Last resort: the cold-outreach mailboxes. The From address will be a domain
+  // the recipient does not recognise, so say so inside the message rather than
+  // letting it look like a forgery.
+  const withNotice = shell(title, FALLBACK_NOTICE + inner);
+  const fallback = await coreEmail({ to, subject, html: withNotice, provider: "zapmail" });
   return {
     ...fallback,
     provider: fallback.ok ? "core:zapmail" : "none",

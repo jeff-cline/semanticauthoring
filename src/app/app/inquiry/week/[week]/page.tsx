@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { SYNTHESIS, REQUIRED, findPatterns, ensureWeeks } from "@/lib/inquiry";
 
@@ -13,7 +13,7 @@ export default async function Week({ params }: { params: Promise<{ week: string 
   const week = Number(weekRaw);
   if (!week || week < 1 || week > 15) notFound();
 
-  const user = (await currentUser())!;
+  const user = await requireUser();
   await ensureWeeks(user.id);
 
   const [meta, entries, synthesis] = await Promise.all([
@@ -28,7 +28,7 @@ export default async function Week({ params }: { params: Promise<{ week: string 
 
   async function saveWeek(formData: FormData) {
     "use server";
-    const me = (await currentUser())!;
+    const me = await requireUser();
     await q(
       `UPDATE inquiry_weeks SET theme=$1, readings=$2, discussion=$3, instruction=$4,
               kind=$5, updated_at=now() WHERE owner_id=$6 AND week=$7`,
@@ -42,7 +42,7 @@ export default async function Week({ params }: { params: Promise<{ week: string 
 
   async function saveSynthesis(formData: FormData) {
     "use server";
-    const me = (await currentUser())!;
+    const me = await requireUser();
     const w = Number(formData.get("week"));
     const g = (k: string) => String(formData.get(k) ?? "").slice(0, 12000);
     await q(

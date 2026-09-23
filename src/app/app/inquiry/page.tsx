@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { currentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { ensureWeeks, CONTEXTS, PRELOADED_WEEKS } from "@/lib/inquiry";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Embodied Inquiry Journal" };
 
 export default async function Inquiry() {
-  const user = (await currentUser())!;
+  const user = await requireUser();
   await ensureWeeks(user.id);
 
   const [settings, weeks, entries, syntheses] = await Promise.all([
@@ -26,7 +26,7 @@ export default async function Inquiry() {
 
   async function start(formData: FormData) {
     "use server";
-    const me = (await currentUser())!;
+    const me = await requireUser();
     const week = Number(formData.get("week"));
     if (!week || week < 1 || week > 15) return;
     const row = await one<{ id: number }>(
@@ -41,7 +41,7 @@ export default async function Inquiry() {
 
   async function saveSettings(formData: FormData) {
     "use server";
-    const me = (await currentUser())!;
+    const me = await requireUser();
     await q(
       `INSERT INTO inquiry_settings (owner_id, scholar_name, course_title, course_code, term, instructor)
        VALUES ($1,$2,$3,$4,$5,$6)

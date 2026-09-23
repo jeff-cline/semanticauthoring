@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { ARRIVE, REQUIRED, CONNECTION, CONTEXTS } from "@/lib/inquiry";
 
@@ -10,7 +10,7 @@ export const metadata = { title: "Journal entry" };
 
 export default async function Entry({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = (await currentUser())!;
+  const user = await requireUser();
 
   const entry = await one<any>(
     `SELECT * FROM inquiry_entries WHERE id=$1 AND owner_id=$2`, [Number(id), user.id]);
@@ -21,7 +21,7 @@ export default async function Entry({ params }: { params: Promise<{ id: string }
 
   async function save(formData: FormData) {
     "use server";
-    const me = (await currentUser())!;
+    const me = await requireUser();
     const eid = Number(formData.get("entryId"));
     const g = (k: string) => String(formData.get(k) ?? "").slice(0, 12000);
     await q(

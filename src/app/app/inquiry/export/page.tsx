@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { currentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Export journal" };
 
 export default async function ExportJournal() {
-  const user = (await currentUser())!;
+  const user = await requireUser();
   const [settings, counts] = await Promise.all([
     one<any>(`SELECT * FROM inquiry_settings WHERE owner_id=$1`, [user.id]),
     one<any>(`SELECT

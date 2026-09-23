@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { q, one, logEvent } from "./db";
 
 const scrypt = promisify(_scrypt) as (
@@ -11,7 +12,18 @@ const scrypt = promisify(_scrypt) as (
 ) => Promise<Buffer>;
 
 const SESSION_COOKIE = "sa_session";
+
+// How long a session survives WITHOUT activity. The window slides forward on
+// every request (see currentUser), so a session you are actually using never
+// expires underneath you — only an idle one does.
 const SESSION_DAYS = 14;
+
+// The cookie outlives the idle window on purpose: the `sessions` row is the
+// authority on whether you are signed in, and it can be revoked server-side.
+// A cookie that expired first would sign you out mid-use, because Next only
+// permits writing cookies from Server Actions and Route Handlers — never
+// during a page render, which is where most session reads happen.
+const COOKIE_DAYS = 90;
 
 // ── passwords ────────────────────────────────────────────────────────────────
 // scrypt from node:crypto — memory-hard, zero dependencies, no native build.
@@ -66,7 +78,7 @@ export async function createSession(userId: number): Promise<string> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    expires,
+    expires: new Date(Date.now() + COOKIE_DAYS * 864e5),
   });
   return token;
 }
@@ -82,6 +94,19 @@ export async function currentUser(): Promise<SessionUser | null> {
     [sha(token)],
   );
   if (!row) return null;
+
+  // Slide the idle window forward. The WHERE clause means this writes at most
+  // once a day rather than on every request, and a failure here must never
+  // fail the request — the worst case is the session expires on its original
+  // schedule.
+  void q(
+    `UPDATE sessions
+        SET expires_at = now() + ($2 || ' days')::interval, updated_at = now()
+      WHERE token_hash = $1
+        AND expires_at < now() + ($3 || ' days')::interval`,
+    [sha(token), String(SESSION_DAYS), String(SESSION_DAYS - 1)],
+  ).catch(() => {});
+
   return {
     id: row.id,
     email: row.email,
@@ -90,6 +115,21 @@ export async function currentUser(): Promise<SessionUser | null> {
     tier: row.tier,
     mustChangePassword: row.must_change_password,
   };
+}
+
+/**
+ * The session, or a redirect to the login page.
+ *
+ * Every page under /app is already guarded by its layout, but a Server Action
+ * runs WITHOUT that layout. Call sites that wrote `(await currentUser())!`
+ * therefore threw a TypeError — surfacing as a 500 and silently discarding
+ * whatever the user had typed — whenever a session expired with the tab still
+ * open. Redirecting sends them to log in and keeps the failure legible.
+ */
+export async function requireUser(): Promise<SessionUser> {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  return user;
 }
 
 export async function destroySession() {

@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { promptsFor, STATES } from "@/lib/prompts";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Daily scholar journal" };
 
 export default async function Journal() {
-  const user = (await currentUser())!;
+  const user = await requireUser();
   const today = new Date();
   const prompts = promptsFor(today);
   const iso = today.toISOString().slice(0, 10);
@@ -20,7 +20,7 @@ export default async function Journal() {
 
   async function save(formData: FormData) {
     "use server";
-    const me = (await currentUser())!;
+    const me = await requireUser();
     const date = String(formData.get("date"));
     const nums = Object.fromEntries(
       STATES.map((s) => {

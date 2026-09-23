@@ -3,6 +3,7 @@ import { q, one, logEvent } from "@/lib/db";
 import { coreLead } from "@/lib/core";
 import { notifyGods, esc } from "@/lib/email";
 import { leadSchema, rateLimited, clientIp, turnstileOk } from "@/lib/validate";
+import { guardForm } from "@/lib/form-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,15 @@ export async function POST(req: Request) {
   }
 
   const parsed = leadSchema.safeParse(await req.json().catch(() => null));
+  // Turnstile already runs below and stays. This adds the content heuristics
+  // (URL/emoji in a name), which a captcha does not do.
+  const rawBody = parsed.success ? (parsed.data as unknown as Record<string, unknown>) : {};
+  const gate = await guardForm(req, "sa_lead", rawBody, {
+    names: [rawBody.name as string | undefined, rawBody.company as string | undefined],
+    texts: [rawBody.message as string | undefined],
+    email: rawBody.email as string | undefined, phone: rawBody.phone as string | undefined,
+  });
+  if (gate.blocked) return NextResponse.json({ ok: true });
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: "Please check the form and try again." }, { status: 400 });
   }

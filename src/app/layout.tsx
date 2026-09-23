@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import RecaptchaProvider from "@/components/RecaptchaProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "https://semanticauthoring.org"),
@@ -47,6 +48,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        {/* Attaches a reCAPTCHA token to every guarded form submission.
+            Inert until RECAPTCHA_SITE_KEY/SECRET_KEY are set. */}
+        <RecaptchaProvider />
         <script type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(org) }} />
         {/* Register the service worker so the app is installable and capture

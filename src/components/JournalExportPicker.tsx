@@ -58,6 +58,7 @@ export default function JournalExportPicker({
                   aria-pressed={scope === s.key} className="pill"
                   style={{
                     cursor: "pointer",
+                    minHeight: 40, padding: "8px 14px",
                     border: `1px solid ${scope === s.key ? "var(--current)" : "transparent"}`,
                     background: scope === s.key ? "var(--current)" : undefined,
                     color: scope === s.key ? "#fff" : undefined,
@@ -73,11 +74,11 @@ export default function JournalExportPicker({
 
       {scope === "range" && (
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
-          <div className="field" style={{ flex: "0 1 180px" }}>
+          <div className="field" style={{ flex: "1 1 180px", minWidth: 150 }}>
             <label htmlFor="from">From</label>
             <input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
-          <div className="field" style={{ flex: "0 1 180px" }}>
+          <div className="field" style={{ flex: "1 1 180px", minWidth: 150 }}>
             <label htmlFor="to">To</label>
             <input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>

@@ -12,6 +12,43 @@ import { limitFor } from "@/lib/tiers";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Import references" };
 
+
+// Hoisted to module scope on purpose. Defined inside the component it became a
+// closure variable of the "use server" actions below, and Next.js has to
+// serialise those closures — which functions cannot be. That threw
+// "Functions cannot be passed directly to Client Components" on every render
+// of this page. It takes everything it needs as arguments, so it never needed
+// to live in the component.
+async function addRefs(me: any, refs: Ref[]): Promise<number> {
+  let n = 0;
+  const limit = limitFor(me, "libraryItems");
+  let have = Number((await one<{ n: string }>(
+    `SELECT count(*) n FROM sources WHERE owner_id=$1`, [me.id]))?.n ?? 0);
+
+  for (const r of refs) {
+    if (limit !== null && have >= limit) break;
+    // Skip a DOI already in the library rather than creating a duplicate.
+    if (r.doi) {
+      const dup = await one(`SELECT id FROM sources WHERE owner_id=$1 AND lower(doi)=lower($2)`,
+        [me.id, r.doi]);
+      if (dup) continue;
+    }
+    const row = await one<{ id: number }>(
+      `INSERT INTO sources (owner_id, title, kind, authors, year, publication, doi, url, tags,
+                            notes, provider, source_url, retrieved_at, confidence)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now(),'imported') RETURNING id`,
+      [me.id, r.title.slice(0, 400), r.kind, r.authors.slice(0, 400), r.year.slice(0, 20),
+       r.publication.slice(0, 300), r.doi.slice(0, 200), r.url.slice(0, 600),
+       r.tags.slice(0, 300), r.abstract.slice(0, 4000), "import", r.url.slice(0, 600)]);
+    if (row) {
+      await indexEntity(me.id, "source", row.id,
+        [r.title, r.authors, r.publication, r.tags, r.abstract].filter(Boolean).join(" "));
+      n++; have++;
+    }
+  }
+  return n;
+}
+
 export default async function Import(
   { searchParams }: { searchParams: Promise<{ done?: string; failed?: string; error?: string }> },
 ) {
@@ -21,35 +58,6 @@ export default async function Import(
     `SELECT count(*) n FROM sources WHERE owner_id=$1`, [user.id]);
   const cap = limitFor(user, "libraryItems");
 
-  async function addRefs(me: any, refs: Ref[]): Promise<number> {
-    let n = 0;
-    const limit = limitFor(me, "libraryItems");
-    let have = Number((await one<{ n: string }>(
-      `SELECT count(*) n FROM sources WHERE owner_id=$1`, [me.id]))?.n ?? 0);
-
-    for (const r of refs) {
-      if (limit !== null && have >= limit) break;
-      // Skip a DOI already in the library rather than creating a duplicate.
-      if (r.doi) {
-        const dup = await one(`SELECT id FROM sources WHERE owner_id=$1 AND lower(doi)=lower($2)`,
-          [me.id, r.doi]);
-        if (dup) continue;
-      }
-      const row = await one<{ id: number }>(
-        `INSERT INTO sources (owner_id, title, kind, authors, year, publication, doi, url, tags,
-                              notes, provider, source_url, retrieved_at, confidence)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now(),'imported') RETURNING id`,
-        [me.id, r.title.slice(0, 400), r.kind, r.authors.slice(0, 400), r.year.slice(0, 20),
-         r.publication.slice(0, 300), r.doi.slice(0, 200), r.url.slice(0, 600),
-         r.tags.slice(0, 300), r.abstract.slice(0, 4000), "import", r.url.slice(0, 600)]);
-      if (row) {
-        await indexEntity(me.id, "source", row.id,
-          [r.title, r.authors, r.publication, r.tags, r.abstract].filter(Boolean).join(" "));
-        n++; have++;
-      }
-    }
-    return n;
-  }
 
   async function importText(formData: FormData) {
     "use server";

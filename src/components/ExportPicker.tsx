@@ -76,6 +76,7 @@ export default function ExportPicker({ weeks }: { weeks: WeekOption[] }) {
             className="pill"
             style={{
               cursor: "pointer",
+              minHeight: 40, padding: "8px 14px",
               border: `1px solid ${scope === s.key ? "var(--current)" : "transparent"}`,
               background: scope === s.key ? "var(--current)" : undefined,
               color: scope === s.key ? "#fff" : undefined,
@@ -93,11 +94,13 @@ export default function ExportPicker({ weeks }: { weeks: WeekOption[] }) {
       {scope === "weeks" && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-            <button type="button" className="pill" style={{ cursor: "pointer" }}
+            <button type="button" className="pill"
+                    style={{ cursor: "pointer", minHeight: 40, padding: "8px 14px" }}
                     onClick={() => setPicked(written.map((w) => w.week))}>
               Select all written
             </button>
-            <button type="button" className="pill" style={{ cursor: "pointer" }}
+            <button type="button" className="pill"
+                    style={{ cursor: "pointer", minHeight: 40, padding: "8px 14px" }}
                     onClick={() => setPicked([])}>
               Clear
             </button>
@@ -107,19 +110,41 @@ export default function ExportPicker({ weeks }: { weeks: WeekOption[] }) {
               No weeks have anything written in them yet.
             </p>
           ) : (
-            <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ display: "grid", gap: 2 }}>
               {written.map((w) => (
-                <label key={w.week}
-                       style={{ display: "flex", alignItems: "baseline", gap: 10,
-                                cursor: "pointer", fontSize: ".92rem" }}>
-                  <input type="checkbox" checked={picked.includes(w.week)}
-                         onChange={() => toggle(w.week)} />
-                  <span>
+                <label
+                  key={w.week}
+                  style={{
+                    // Grid, not flex: the checkbox column is a fixed width, so
+                    // every box lines up however long the week's theme runs.
+                    display: "grid",
+                    gridTemplateColumns: "22px 1fr",
+                    alignItems: "start",
+                    columnGap: 12,
+                    // A 44px row is the minimum comfortable tap target on iPhone.
+                    minHeight: 44,
+                    padding: "9px 10px",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontSize: ".92rem",
+                    background: picked.includes(w.week) ? "var(--wash, rgba(0,0,0,.035))" : "transparent",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={picked.includes(w.week)}
+                    onChange={() => toggle(w.week)}
+                    style={{ width: 20, height: 20, margin: "1px 0 0", flexShrink: 0 }}
+                  />
+                  <span style={{ minWidth: 0 }}>
                     <strong>Week {w.week}</strong>
                     {w.theme ? ` — ${w.theme}` : ""}
-                    <span style={{ color: "var(--muted)" }}>
-                      {" · "}{w.entries} {w.entries === 1 ? "entry" : "entries"}
-                      {w.synthesis ? " · synthesis" : ""}
+                    {/* Counts go on their own line so a long theme cannot push
+                        them off the edge of a phone screen. */}
+                    <span style={{ display: "block", color: "var(--muted)", fontSize: ".84rem",
+                                   marginTop: 2 }}>
+                      {w.entries} {w.entries === 1 ? "entry" : "entries"}
+                      {w.synthesis ? " · synthesis written" : ""}
                     </span>
                   </span>
                 </label>
@@ -131,11 +156,11 @@ export default function ExportPicker({ weeks }: { weeks: WeekOption[] }) {
 
       {scope === "range" && (
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
-          <div className="field" style={{ flex: "0 1 180px" }}>
+          <div className="field" style={{ flex: "1 1 180px", minWidth: 150 }}>
             <label htmlFor="from">From</label>
             <input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
-          <div className="field" style={{ flex: "0 1 180px" }}>
+          <div className="field" style={{ flex: "1 1 180px", minWidth: 150 }}>
             <label htmlFor="to">To</label>
             <input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>

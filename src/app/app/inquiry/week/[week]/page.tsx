@@ -69,7 +69,15 @@ export default async function Week({ params }: { params: Promise<{ week: string 
     <>
       <p style={{ marginBottom: 8 }}><Link href="/app/inquiry">← Journal</Link></p>
       <p className="eyebrow">Embodied Inquiry</p>
-      <h1 style={{ marginBottom: 6 }}>Week {week}{meta.theme ? ` — ${meta.theme}` : ""}</h1>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+        <h1 style={{ marginBottom: 6 }}>Week {week}{meta.theme ? ` — ${meta.theme}` : ""}</h1>
+        {(entries.length > 0 || synthesis) && (
+          <a className="pill" style={{ textDecoration: "none" }} download
+             href={`/app/inquiry/export/journal.docx?weeks=${week}`}>
+            Export this week (Word) ↓
+          </a>
+        )}
+      </div>
 
       <div className="grid grid-2" style={{ alignItems: "start", marginTop: 22 }}>
         <div>

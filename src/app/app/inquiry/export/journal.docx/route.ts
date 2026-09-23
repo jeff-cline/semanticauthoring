@@ -5,6 +5,10 @@ import {
 import { currentUser } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { ARRIVE, REQUIRED, CONNECTION, SYNTHESIS } from "@/lib/inquiry";
+import {
+  parseSelection, resolveSemester, includesEntry, includesSynthesis,
+  describeSelection, selectionSuffix,
+} from "@/lib/inquiry-export";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,17 +34,32 @@ const answer = (text: string) =>
     children: [new TextRun({ text: text || "—", size: 22 })],
   });
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const [settings, weeks, entries, syntheses] = await Promise.all([
+  const [settings, weeks, allEntries, allSyntheses] = await Promise.all([
     one<any>(`SELECT * FROM inquiry_settings WHERE owner_id=$1`, [user.id]),
     q<any>(`SELECT * FROM inquiry_weeks WHERE owner_id=$1 ORDER BY week`, [user.id]),
     q<any>(`SELECT * FROM inquiry_entries WHERE owner_id=$1 ORDER BY week, entry_date, id`,
       [user.id]),
     q<any>(`SELECT * FROM inquiry_synthesis WHERE owner_id=$1`, [user.id]),
   ]);
+
+  // Which part of the journal was asked for. Filtering only — every included
+  // word is still reproduced exactly as written.
+  const earliest = allEntries.length
+    ? new Date(allEntries.reduce((min: any, e: any) =>
+        new Date(e.entry_date) < new Date(min.entry_date) ? e : min).entry_date)
+        .toISOString().slice(0, 10)
+    : null;
+  const selection = resolveSemester(
+    parseSelection(new URL(req.url).searchParams), earliest);
+
+  const entries = allEntries.filter((e: any) => includesEntry(selection, e));
+  const weeksWithEntries = new Set<number>(entries.map((e: any) => e.week));
+  const syntheses = allSyntheses.filter((s: any) =>
+    includesSynthesis(selection, s, weeksWithEntries));
 
   const synthByWeek = new Map(syntheses.map((s: any) => [s.week, s]));
   const children: Paragraph[] = [];
@@ -65,6 +84,14 @@ export async function GET() {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: settings?.term ?? "", size: 24 })],
+    }),
+    // State the scope on the page, so a partial export can never be mistaken
+    // for the whole journal once it is printed or handed in.
+    new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { before: 320 },
+      children: [new TextRun({
+        text: describeSelection(selection), size: 22, italics: true, color: "61708A",
+      })],
     }),
     new Paragraph({ children: [new PageBreak()] }),
   );
@@ -158,8 +185,10 @@ export async function GET() {
     children.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
-  if (entries.length === 0) {
-    children.push(answer("No journal entries have been written yet."));
+  if (entries.length === 0 && syntheses.length === 0) {
+    children.push(answer(allEntries.length === 0
+      ? "No journal entries have been written yet."
+      : "Nothing was written in the range selected for this export."));
   }
 
   const doc = new Document({
@@ -177,7 +206,7 @@ export async function GET() {
   const buf = await Packer.toBuffer(doc);
   const stamp = new Date().toISOString().slice(0, 10);
   const name = `embodied-inquiry-journal-${(settings?.course_code ?? "journal")
-    .toLowerCase().replace(/\s+/g, "-")}-${stamp}.docx`;
+    .toLowerCase().replace(/\s+/g, "-")}-${selectionSuffix(selection)}-${stamp}.docx`;
 
   return new NextResponse(new Uint8Array(buf), {
     headers: {

@@ -1,19 +1,28 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { q, one } from "@/lib/db";
+import ExportPicker from "@/components/ExportPicker";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Export journal" };
 
 export default async function ExportJournal() {
   const user = await requireUser();
-  const [settings, counts] = await Promise.all([
+  const [settings, counts, weekRows] = await Promise.all([
     one<any>(`SELECT * FROM inquiry_settings WHERE owner_id=$1`, [user.id]),
     one<any>(`SELECT
         (SELECT count(*)::int FROM inquiry_entries WHERE owner_id=$1) AS entries,
         (SELECT count(*)::int FROM inquiry_synthesis WHERE owner_id=$1) AS syntheses,
         (SELECT count(DISTINCT week)::int FROM inquiry_entries WHERE owner_id=$1) AS weeks`,
       [user.id]),
+    // Only weeks with something in them are offered — you cannot usefully
+    // export a week you have not written.
+    q<any>(`SELECT w.week, w.theme,
+                   (SELECT count(*)::int FROM inquiry_entries e
+                     WHERE e.owner_id=w.owner_id AND e.week=w.week) AS entries,
+                   EXISTS (SELECT 1 FROM inquiry_synthesis s
+                            WHERE s.owner_id=w.owner_id AND s.week=w.week) AS synthesis
+              FROM inquiry_weeks w WHERE w.owner_id=$1 ORDER BY w.week`, [user.id]),
   ]);
 
   return (
@@ -22,8 +31,9 @@ export default async function ExportJournal() {
       <p className="eyebrow">Embodied Inquiry Journal</p>
       <h1>Export the semester</h1>
       <p style={{ color: "var(--muted)", maxWidth: 680 }}>
-        One Word document, organised by week, with your entries and weekly syntheses in the
-        order you wrote them.
+        A Word document, organised by week, with your entries and weekly syntheses in the
+        order you wrote them. Export the whole journal, a single week, any set of weeks, or
+        a date range.
       </p>
 
       <div className="grid grid-3" style={{ margin: "24px 0", maxWidth: 620 }}>
@@ -38,22 +48,19 @@ export default async function ExportJournal() {
         ))}
       </div>
 
-      <div className="card stage stage-celebrate" style={{ maxWidth: 680 }}>
-        <h2 style={{ fontSize: "1.05rem" }}>
-          {settings?.scholar_name || user.name}
-        </h2>
-        <p style={{ color: "var(--muted)", margin: "0 0 18px" }}>
-          {settings?.course_title} — {settings?.course_code} · {settings?.term}
-        </p>
-        <a className="btn btn-primary" href="/app/inquiry/export/journal.docx" download>
-          Export semester embodied inquiry journal
-        </a>
-        <p style={{ color: "var(--muted)", fontSize: ".88rem", marginTop: 16, marginBottom: 0 }}>
-          Your original language and dates are preserved exactly. Nothing is rewritten,
-          summarised, or edited on the way out — this is your submitted work, and changing it
-          during export would be changing your submission.
-        </p>
-      </div>
+      <p style={{ margin: "0 0 14px", fontSize: ".95rem" }}>
+        <strong>{settings?.scholar_name || user.name}</strong>
+        <span style={{ color: "var(--muted)" }}>
+          {" · "}{settings?.course_title} — {settings?.course_code} · {settings?.term}
+        </span>
+      </p>
+
+      <ExportPicker weeks={weekRows.map((w: any) => ({
+        week: w.week,
+        theme: w.theme ?? "",
+        entries: Number(w.entries ?? 0),
+        synthesis: Boolean(w.synthesis),
+      }))} />
 
       {Number(counts?.entries ?? 0) === 0 && (
         <p style={{ color: "var(--muted)", marginTop: 20 }}>

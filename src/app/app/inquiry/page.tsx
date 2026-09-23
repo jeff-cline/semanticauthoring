@@ -128,7 +128,7 @@ export default async function Inquiry() {
         <span className="pill">{total} entries</span>
         <span className="pill">{synth.size} weekly syntheses</span>
         <Link href="/app/inquiry/export" className="pill" style={{ textDecoration: "none" }}>
-          Export semester journal →
+          Download as Word ↓
         </Link>
       </div>
 

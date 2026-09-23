@@ -12,7 +12,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <Link href="/" className="brand"><Mark /> Semantic Authoring</Link>
           <nav className="nav" aria-label="Main">
             <Link href="/discover">Discover</Link>
-            <Link href="/scholars">Scholars</Link>
+            <Link href="/authors">Authors</Link>
             <Link href="/journey">Journey</Link>
             <Link href="/answers">Answers</Link>
             <Link href="/mission">Mission</Link>

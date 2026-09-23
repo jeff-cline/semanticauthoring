@@ -5,6 +5,7 @@ import { PublicShell } from "@/components/Chrome";
 import SubscribeForm from "@/components/SubscribeForm";
 import ProfileContact from "@/components/ProfileContact";
 import { q, one } from "@/lib/db";
+import { stripTags } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,21 +32,38 @@ export async function generateMetadata(
   const p = await load(handle);
   if (!p) return { title: "Scholar not found", robots: { index: false } };
   const name = p.display_name || p.user_name;
-  const desc = p.headline || p.bio?.slice(0, 180) || `Scholarship by ${name}.`;
+  const fallbackDesc = p.headline || stripTags(p.about_html || "", 180)
+    || p.bio?.slice(0, 180) || `Scholarship by ${name}.`;
+
+  // Every override falls back to real content, so a scholar who never opens
+  // the SEO section still gets correct tags.
+  const title = p.meta_title || name;
+  const desc = p.meta_description || fallbackDesc;
+  const ogTitle = p.og_title || title;
+  const ogDesc = p.og_description || desc;
+  const shareImage = p.og_image || p.avatar_url || "";
   const url = `${SITE}/${p.handle}`;
+  const keywords = (p.seo_keywords || p.interests || "")
+    .split(",").map((k: string) => k.trim()).filter(Boolean);
+
   return {
-    title: name,
+    title,
     description: desc,
-    keywords: p.interests ? p.interests.split(",").map((s: string) => s.trim()) : undefined,
+    keywords: keywords.length ? keywords : undefined,
     alternates: { canonical: `/${p.handle}` },
+    // A public page the scholar has asked to keep out of search results.
+    robots: p.allow_indexing === false
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
+    authors: [{ name, url }],
     openGraph: {
-      type: "profile", title: name, description: desc, url,
-      images: p.avatar_url ? [{ url: p.avatar_url, alt: p.avatar_alt || name }] : undefined,
+      type: "profile", title: ogTitle, description: ogDesc, url, siteName: "Semantic Authoring",
+      images: shareImage ? [{ url: shareImage, alt: p.avatar_alt || name }] : undefined,
     },
     twitter: {
-      card: p.avatar_url ? "summary_large_image" : "summary",
-      title: name, description: desc,
-      images: p.avatar_url ? [p.avatar_url] : undefined,
+      card: shareImage ? "summary_large_image" : "summary",
+      title: ogTitle, description: ogDesc,
+      images: shareImage ? [shareImage] : undefined,
     },
   };
 }
@@ -58,10 +76,12 @@ export default async function ScholarProfile({ params }: { params: Promise<{ han
   const [pubs, testimonials, milestones] = await Promise.all([
     // on_profile is the scholar's explicit "show this here" decision, separate
     // from publishing — she can publish quietly without it appearing up front.
+    p.show_publications === false ? Promise.resolve([]) :
     q<any>(`SELECT slug, title, subtitle, abstract, kind, topic, tags, reading_time, published_at
               FROM publications
              WHERE owner_id=$1 AND status='published' AND on_profile = TRUE
              ORDER BY published_at DESC`, [p.user_id]).catch(() => []),
+    p.show_testimonials === false ? Promise.resolve([]) :
     q<any>(`SELECT author_name, author_role, author_institution, body
               FROM testimonials WHERE owner_id=$1 AND status='published'
              ORDER BY published_at DESC LIMIT 6`, [p.user_id]).catch(() => []),
@@ -129,9 +149,11 @@ export default async function ScholarProfile({ params }: { params: Promise<{ han
                 <p className="eyebrow">Scholar</p>
                 <h1 style={{ marginBottom: 6 }}>{name}</h1>
                 {p.headline && <p className="lede" style={{ marginBottom: 10 }}>{p.headline}</p>}
-                <p style={{ color: "var(--muted)", marginTop: 0 }}>
-                  {[p.degree, p.program, p.institution].filter(Boolean).join(" · ")}
-                </p>
+                {p.show_affiliation !== false && (
+                  <p style={{ color: "var(--muted)", marginTop: 0 }}>
+                    {[p.degree, p.program, p.institution].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -145,7 +167,7 @@ export default async function ScholarProfile({ params }: { params: Promise<{ han
 
             {/* Rich About Me when she has written one, plain bio otherwise. The
                 HTML is sanitised on save — see /app/profile. */}
-            {p.about_html ? (
+            {p.show_about === false ? null : p.about_html ? (
               <div className="prose" style={{ margin: "26px 0" }}
                    dangerouslySetInnerHTML={{ __html: p.about_html }} />
             ) : p.bio ? (
@@ -154,14 +176,14 @@ export default async function ScholarProfile({ params }: { params: Promise<{ han
               </div>
             ) : null}
 
-            {p.goals && (
+            {p.goals && p.show_goals !== false && (
               <div className="card stage stage-synthesize" style={{ margin: "0 0 26px" }}>
                 <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>What I am working toward</h2>
                 <p style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>{p.goals}</p>
               </div>
             )}
 
-            {p.interests && (
+            {p.interests && p.show_interests !== false && (
               <p style={{ margin: "0 0 20px" }}>
                 {p.interests.split(",").map((t: string) => (
                   <span key={t} className="pill" style={{ marginRight: 6 }}>{t.trim()}</span>
@@ -170,24 +192,28 @@ export default async function ScholarProfile({ params }: { params: Promise<{ han
             )}
 
             <p style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-              {p.orcid && (
+              {p.show_links !== false && p.orcid && (
                 <a href={`https://orcid.org/${p.orcid}`} target="_blank" rel="noopener noreferrer">
                   ORCID {p.orcid}
                 </a>
               )}
-              {p.website && <a href={p.website} target="_blank" rel="noopener noreferrer">Website</a>}
-              {social.map((s: string) => (
+              {p.show_links !== false && p.website && <a href={p.website} target="_blank" rel="noopener noreferrer">Website</a>}
+              {(p.show_links === false ? [] : social).map((s: string) => (
                 <a key={s} href={s} target="_blank" rel="noopener noreferrer">
                   {(() => { try { return new URL(s).hostname.replace("www.", ""); } catch { return s; } })()}
                 </a>
               ))}
             </p>
 
-            <h2 style={{ marginTop: 44 }}>
-              {pubs.length > 0 ? `Published work (${pubs.length})` : "Published work"}
-            </h2>
-            {pubs.length === 0 && (
-              <p style={{ color: "var(--muted)" }}>Nothing published yet.</p>
+            {p.show_publications !== false && (
+              <>
+                <h2 style={{ marginTop: 44 }}>
+                  {pubs.length > 0 ? `Published work (${pubs.length})` : "Published work"}
+                </h2>
+                {pubs.length === 0 && (
+                  <p style={{ color: "var(--muted)" }}>Nothing published yet.</p>
+                )}
+              </>
             )}
             {pubs.map((pub: any) => (
               <article key={pub.slug} className="card stage stage-publish" style={{ marginBottom: 14 }}>
@@ -249,7 +275,9 @@ export default async function ScholarProfile({ params }: { params: Promise<{ han
           </div>
 
           <aside>
-            <SubscribeForm scholarId={p.user_id} scholarName={name} />
+            {p.show_subscribe !== false && (
+              <SubscribeForm scholarId={p.user_id} scholarName={name} />
+            )}
             <p style={{ color: "var(--muted)", fontSize: ".86rem", marginTop: 18 }}>
               <Link href="/scholars">Browse all scholars →</Link>
             </p>

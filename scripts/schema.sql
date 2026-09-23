@@ -1149,3 +1149,27 @@ CREATE TABLE IF NOT EXISTS profile_messages (
 );
 CREATE INDEX IF NOT EXISTS profile_messages_owner_idx
   ON profile_messages(owner_id, created_at DESC);
+
+-- ── Profile: per-section visibility and social/search metadata ──────────────
+-- Name and photo are not listed: they are what makes the page a profile at all,
+-- so there is nothing to toggle.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_about        BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_goals        BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_interests    BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_affiliation  BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_links        BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_publications BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_testimonials BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_subscribe    BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Overrides for how the page appears in search results and when shared. Each
+-- falls back to the profile's own content when left blank, so a scholar who
+-- never opens this section still gets sensible tags.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS meta_title       TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS meta_description TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS og_title         TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS og_description   TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS og_image         TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS seo_keywords     TEXT NOT NULL DEFAULT '';
+-- Let a scholar keep a public page out of search results without hiding it.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS allow_indexing   BOOLEAN NOT NULL DEFAULT TRUE;

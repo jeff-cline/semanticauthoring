@@ -17,7 +17,7 @@ export function slugify(input: string, fallback = "untitled"): string {
 // it on a CV. Every real route at src/app/* belongs in this list.
 export const RESERVED = new Set([
   // real top-level routes
-  "about", "advising", "answers", "api", "app", "change-password", "discover",
+  "about", "advising", "answers", "api", "app", "authors", "change-password", "discover",
   "feed.xml", "forgot", "join", "journey", "login", "logout", "mission",
   "offline", "peer-review", "pricing", "privacy", "reset", "review", "s",
   "scholars", "search", "sso", "subscribed", "terms", "testimonial",

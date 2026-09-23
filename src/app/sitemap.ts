@@ -14,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: "/", priority: 1.0, changeFrequency: "weekly" as const },
     { url: "/discover", priority: 0.95, changeFrequency: "daily" as const },
     { url: "/scholars", priority: 0.9, changeFrequency: "daily" as const },
+    { url: "/authors", priority: 0.9, changeFrequency: "daily" as const },
     { url: "/search", priority: 0.6, changeFrequency: "monthly" as const },
     { url: "/journey", priority: 0.9, changeFrequency: "monthly" as const },
     { url: "/answers", priority: 0.9, changeFrequency: "weekly" as const },
@@ -27,7 +28,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Only public profiles and published work are ever listed.
   const [profiles, pubs] = await Promise.all([
-    q<any>(`SELECT handle, updated_at FROM profiles WHERE is_public = TRUE`).catch(() => []),
+    // allow_indexing lets a scholar keep a public page out of search results;
+    // listing it in the sitemap would contradict its own robots tag.
+    q<any>(`SELECT handle, updated_at FROM profiles
+             WHERE is_public = TRUE AND allow_indexing = TRUE`).catch(() => []),
     q<any>(`SELECT pr.handle, pub.slug, pub.updated_at
               FROM publications pub
               JOIN profiles pr ON pr.user_id = pub.owner_id AND pr.is_public = TRUE
@@ -44,8 +48,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const, priority: 0.85,
     })),
     ...profiles.map((p: any) => ({
-      url: `${SITE}/s/${p.handle}`, lastModified: new Date(p.updated_at),
-      changeFrequency: "weekly" as const, priority: 0.8,
+      url: `${SITE}/${p.handle}`, lastModified: new Date(p.updated_at),
+      changeFrequency: "weekly" as const, priority: 0.85,
     })),
     ...pubs.map((p: any) => ({
       url: `${SITE}/s/${p.handle}/${p.slug}`, lastModified: new Date(p.updated_at),

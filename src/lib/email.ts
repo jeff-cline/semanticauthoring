@@ -65,29 +65,48 @@ export const esc = (v: unknown) =>
 export async function sendTransactional(
   to: string, subject: string, title: string, inner: string,
 ) {
-  const html = shell(title, inner);
+  // Which Core mailbox to try first. google_workspace sends as the real domain
+  // and is the right answer once its credentials work; MAIL_PRIMARY=zapmail
+  // skips it while they do not, so a broken mailbox does not cost every
+  // message a failed attempt before the one that works.
+  const primaryProvider: "google_workspace" | "zapmail" =
+    process.env.MAIL_PRIMARY === "zapmail" ? "zapmail" : "google_workspace";
+  const secondProvider = primaryProvider === "zapmail" ? "google_workspace" : "zapmail";
 
+  // The notice is about the SENDER, not about failure: zapmail delivers from a
+  // relay domain the recipient will not recognise, which is true whether it was
+  // chosen first or reached last.
+  const bodyFor = (provider: string) =>
+    shell(title, provider === "zapmail" ? FALLBACK_NOTICE + inner : inner);
+
+  let smtpError: string | undefined;
   if (smtpConfigured()) {
-    const direct = await sendSmtp(to, subject, html);
+    const direct = await sendSmtp(to, subject, shell(title, inner));
     if (direct.ok) return { ok: true, provider: "smtp", degraded: false };
     // Fall through — but remember why, so the failure is not lost.
-    var smtpError = direct.error;
+    smtpError = direct.error;
   }
 
-  const primary = await coreEmail({ to, subject, html, provider: "google_workspace" });
+  const primary = await coreEmail({
+    to, subject, html: bodyFor(primaryProvider), provider: primaryProvider,
+  });
   if (primary.ok) {
-    return { ok: true, provider: "core:google_workspace",
-             degraded: smtpConfigured(), primaryError: smtpError };
+    return {
+      ok: true,
+      provider: `core:${primaryProvider}`,
+      // Sending as anything other than our own domain is still a degraded
+      // state, even when it is the configured first choice.
+      degraded: smtpConfigured() || primaryProvider === "zapmail",
+      primaryError: smtpError,
+    };
   }
 
-  // Last resort: the cold-outreach mailboxes. The From address will be a domain
-  // the recipient does not recognise, so say so inside the message rather than
-  // letting it look like a forgery.
-  const withNotice = shell(title, FALLBACK_NOTICE + inner);
-  const fallback = await coreEmail({ to, subject, html: withNotice, provider: "zapmail" });
+  const fallback = await coreEmail({
+    to, subject, html: bodyFor(secondProvider), provider: secondProvider,
+  });
   return {
     ...fallback,
-    provider: fallback.ok ? "core:zapmail" : "none",
+    provider: fallback.ok ? `core:${secondProvider}` : "none",
     degraded: true,
     primaryError: smtpError ?? primary.error,
   };

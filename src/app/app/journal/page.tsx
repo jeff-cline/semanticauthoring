@@ -1,7 +1,10 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { promptsFor, STATES } from "@/lib/prompts";
+import SaveButton from "@/components/SaveButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Daily scholar journal" };
@@ -49,12 +52,18 @@ export default async function Journal() {
     );
     await logEvent("journal", "saved", { actorId: me.id, entityId: date });
     revalidatePath("/app/journal");
+    redirect("/app/journal?saved=entry");
   }
 
   return (
     <>
       <p className="eyebrow">Today · {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
-      <h1>Daily scholar journal</h1>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+        <h1>Daily scholar journal</h1>
+        <Link href="/app/journal/export" className="pill" style={{ textDecoration: "none" }}>
+          Download as Word ↓
+        </Link>
+      </div>
       <p style={{ color: "var(--muted)", maxWidth: 640 }}>
         Private to you. Scholars are people, not productivity machines — this is a place for
         the thinking and the noticing, not a progress report.
@@ -115,7 +124,7 @@ export default async function Journal() {
           <textarea id="reflection" name="reflection" rows={3} defaultValue={entry?.reflection ?? ""} />
         </div>
 
-        <button className="btn btn-primary">{entry ? "Update today" : "Save today"}</button>
+        <SaveButton>{entry ? "Update today" : "Save today"}</SaveButton>
         {entry && (
           <span style={{ color: "var(--muted)", fontSize: ".85rem", marginLeft: 14 }}>
             Last saved {new Date(entry.updated_at).toLocaleTimeString()}

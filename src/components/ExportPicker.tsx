@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { condenseWeeks } from "@/lib/inquiry-export";
+import { Spinner } from "@/components/SaveButton";
 
 type WeekOption = { week: number; theme: string; entries: number; synthesis: boolean };
 
@@ -27,6 +28,7 @@ export default function ExportPicker({ weeks }: { weeks: WeekOption[] }) {
   const [picked, setPicked] = useState<number[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(today());
+  const [busy, setBusy] = useState(false);
 
   const href = useMemo(() => {
     const p = new URLSearchParams();
@@ -149,15 +151,17 @@ export default function ExportPicker({ weeks }: { weeks: WeekOption[] }) {
           Download Word document
         </button>
       ) : (
-        <a className="btn btn-primary" href={href} download>
-          Download Word document
+        <a className="btn btn-primary" href={href} download aria-busy={busy}
+           onClick={() => { setBusy(true); setTimeout(() => setBusy(false), 4000); }}>
+          {busy ? <><Spinner /> Preparing…</> : "Download Word document"}
         </a>
       )}
 
       <p style={{ color: "var(--muted)", fontSize: ".88rem", marginTop: 16, marginBottom: 0 }}>
         Your original language and dates are preserved exactly. Nothing is rewritten,
         summarised, or edited on the way out — this is your submitted work, and changing it
-        during export would be changing your submission.
+        during export would be changing your submission. A copy is kept in{" "}
+        <a href="/app/documents">Saved documents</a> so you can download it again later.
       </p>
     </div>
   );

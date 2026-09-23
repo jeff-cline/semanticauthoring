@@ -22,7 +22,22 @@ export default function SaveButton({
   const { pending } = useFormStatus();
   return (
     <button className={className} disabled={pending} aria-busy={pending}>
-      {pending ? pendingLabel : children}
+      {pending ? <><Spinner /> {pendingLabel}</> : children}
     </button>
+  );
+}
+
+/** A turning wheel, so a slow save never reads as a dead page. */
+export function Spinner() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-block", width: "0.85em", height: "0.85em",
+        marginInlineEnd: 8, verticalAlign: "-0.1em",
+        border: "2px solid currentColor", borderTopColor: "transparent",
+        borderRadius: "50%", animation: "sa-spin .7s linear infinite",
+      }}
+    />
   );
 }

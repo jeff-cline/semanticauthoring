@@ -9,6 +9,7 @@ import {
   parseSelection, resolveSemester, includesEntry, includesSynthesis,
   describeSelection, selectionSuffix,
 } from "@/lib/inquiry-export";
+import { recordExport, DOCX_MIME } from "@/lib/saved-exports";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -208,10 +209,14 @@ export async function GET(req: Request) {
   const name = `embodied-inquiry-journal-${(settings?.course_code ?? "journal")
     .toLowerCase().replace(/\s+/g, "-")}-${selectionSuffix(selection)}-${stamp}.docx`;
 
+  await recordExport({
+    ownerId: user.id, kind: "inquiry", title: "Embodied Inquiry Journal",
+    scope: describeSelection(selection), filename: name, content: buf,
+  }).catch(() => {});   // never fail the download because the archive write failed
+
   return new NextResponse(new Uint8Array(buf), {
     headers: {
-      "content-type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "content-type": DOCX_MIME,
       "content-disposition": `attachment; filename="${name}"`,
       "cache-control": "private, no-store",
     },

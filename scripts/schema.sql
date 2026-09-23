@@ -1102,3 +1102,20 @@ CREATE TABLE IF NOT EXISTS journal_shortlist (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS journal_shortlist_owner_idx ON journal_shortlist(owner_id);
+
+-- Saved exports. Keeps the EXACT file that was generated, not a recipe for
+-- regenerating one: if she hands a Word document to a professor, she needs to
+-- be able to show precisely what she handed in, even after the journal has
+-- moved on. Regenerating later would quietly produce a different document.
+CREATE TABLE IF NOT EXISTS saved_exports (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL DEFAULT 'inquiry',   -- inquiry | journal
+  title       TEXT NOT NULL DEFAULT '',
+  scope       TEXT NOT NULL DEFAULT '',          -- human description of what was included
+  filename    TEXT NOT NULL,
+  content     BYTEA NOT NULL,
+  size_bytes  INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS saved_exports_owner_idx ON saved_exports(owner_id, created_at DESC);

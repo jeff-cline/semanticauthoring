@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { SYNTHESIS, REQUIRED, findPatterns, ensureWeeks } from "@/lib/inquiry";
+import SaveButton from "@/components/SaveButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Week" };
@@ -37,7 +38,11 @@ export default async function Week({ params }: { params: Promise<{ week: string 
        String(formData.get("discussion") ?? "").slice(0, 4000),
        String(formData.get("instruction") ?? "").slice(0, 4000),
        String(formData.get("kind") ?? "reading"), me.id, Number(formData.get("week"))]);
-    revalidatePath(`/app/inquiry/week/${formData.get("week")}`);
+    const w = Number(formData.get("week"));
+    revalidatePath(`/app/inquiry/week/${w}`);
+    // Redirect rather than fall through, so the page comes back with proof the
+    // write landed. Must be outside any try/catch — it signals via a throw.
+    redirect(`/app/inquiry/week/${w}?saved=week`);
   }
 
   async function saveSynthesis(formData: FormData) {
@@ -55,7 +60,9 @@ export default async function Week({ params }: { params: Promise<{ week: string 
       [me.id, w, g("patterns"), g("resonance"), g("resistance"), g("shift"),
        g("influence"), g("carrying")]);
     await logEvent("inquiry_synthesis", "saved", { actorId: me.id, entityId: w });
+    revalidatePath(`/app/inquiry`);
     revalidatePath(`/app/inquiry/week/${w}`);
+    redirect(`/app/inquiry/week/${w}?saved=synthesis`);
   }
 
   return (
@@ -114,7 +121,7 @@ export default async function Week({ params }: { params: Promise<{ week: string 
                           defaultValue={synthesis?.[s.key] ?? ""} />
               </div>
             ))}
-            <button className="btn btn-primary">Save synthesis</button>
+            <SaveButton>Save synthesis</SaveButton>
           </form>
         </div>
 
@@ -224,7 +231,7 @@ export default async function Week({ params }: { params: Promise<{ week: string 
                 <option value="practice">Practice</option>
               </select>
             </div>
-            <button className="btn btn-secondary">Save week</button>
+            <SaveButton className="btn btn-secondary">Save week</SaveButton>
           </form>
         </div>
       </div>

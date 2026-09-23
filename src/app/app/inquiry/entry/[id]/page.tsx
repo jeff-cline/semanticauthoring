@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { ARRIVE, REQUIRED, CONNECTION, CONTEXTS } from "@/lib/inquiry";
+import SaveButton from "@/components/SaveButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Journal entry" };
@@ -40,7 +41,12 @@ export default async function Entry({ params }: { params: Promise<{ id: string }
        g("trigger_quote"), g("trigger_page").slice(0, 40),
        g("body_where"), g("accompaniment"), g("meaning"), g("deepens"), eid, me.id]);
     await logEvent("inquiry_entry", "saved", { actorId: me.id, entityId: eid });
+    revalidatePath(`/app/inquiry`);
+    revalidatePath(`/app/inquiry/week/${entry.week}`);
     revalidatePath(`/app/inquiry/entry/${eid}`);
+    // Come back with proof the write landed. Must sit outside any try/catch —
+    // redirect signals by throwing.
+    redirect(`/app/inquiry/entry/${eid}?saved=entry`);
   }
 
   const readings = String(week?.readings || "").split("\n").map((s: string) => s.trim()).filter(Boolean);
@@ -172,7 +178,7 @@ export default async function Entry({ params }: { params: Promise<{ id: string }
           ))}
         </section>
 
-        <button className="btn btn-primary">Save entry</button>
+        <SaveButton>Save entry</SaveButton>
         <span style={{ color: "var(--muted)", fontSize: ".86rem", marginLeft: 14 }}>
           Last saved {new Date(entry.updated_at).toLocaleString()}
         </span>

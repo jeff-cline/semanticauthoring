@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
+import SavedNotice from "@/components/SavedNotice";
 import { Mark } from "@/components/Brand";
 import CommandPalette from "@/components/CommandPalette";
 import { unreadCount } from "@/lib/notify";
@@ -22,6 +24,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app">
+      {/* Confirms a save landed. useSearchParams needs a boundary. */}
+      <Suspense fallback={null}>
+        <SavedNotice />
+      </Suspense>
       <CommandPalette />
       <nav className="sidebar" aria-label="Workspace">
         <Link href="/app" className="brand" style={{ padding: "4px 24px 18px", fontSize: ".82rem" }}>

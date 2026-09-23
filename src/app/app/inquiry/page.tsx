@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { ensureWeeks, CONTEXTS, PRELOADED_WEEKS } from "@/lib/inquiry";
+import SaveButton from "@/components/SaveButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Embodied Inquiry Journal" };
@@ -15,13 +16,28 @@ export default async function Inquiry() {
   const [settings, weeks, entries, syntheses] = await Promise.all([
     one<any>(`SELECT * FROM inquiry_settings WHERE owner_id=$1`, [user.id]),
     q<any>(`SELECT * FROM inquiry_weeks WHERE owner_id=$1 ORDER BY week`, [user.id]),
-    q<any>(`SELECT week, count(*)::int AS n, max(entry_date) AS last
+    // `blank` counts entries that were started but never written into. They
+    // used to be indistinguishable from finished ones here, which made a lost
+    // save look like a saved one.
+    q<any>(`SELECT week, count(*)::int AS n, max(entry_date) AS last,
+                   count(*) FILTER (
+                     WHERE btrim(concat_ws(' ', sensations, location, emotions, breath_body,
+                                           precognitive, noticed, changed, surprised,
+                                           alive_constricted, meaning, deepens)) = ''
+                   )::int AS blank
               FROM inquiry_entries WHERE owner_id=$1 GROUP BY week`, [user.id]),
-    q<any>(`SELECT week FROM inquiry_synthesis WHERE owner_id=$1`, [user.id]),
+    q<any>(`SELECT week, patterns, resonance, resistance, shift, influence, carrying,
+                   updated_at
+              FROM inquiry_synthesis WHERE owner_id=$1`, [user.id]),
   ]);
 
   const byWeek = new Map(entries.map((e: any) => [e.week, e]));
-  const synth = new Set(syntheses.map((s: any) => s.week));
+  const synth = new Map(syntheses.map((s: any) => [s.week, s]));
+  // First non-empty answer, so the card shows her actual words rather than
+  // only asserting that something was saved.
+  const synthPreview = (s: any): string =>
+    ["patterns", "resonance", "resistance", "shift", "influence", "carrying"]
+      .map((k) => String(s?.[k] ?? "").trim()).find(Boolean) ?? "";
   const total = entries.reduce((n: number, e: any) => n + e.n, 0);
 
   async function start(formData: FormData) {
@@ -54,6 +70,7 @@ export default async function Inquiry() {
        String(formData.get("term") ?? "").slice(0, 60),
        String(formData.get("instructor") ?? "").slice(0, 200)]);
     revalidatePath("/app/inquiry");
+    redirect("/app/inquiry?saved=settings");
   }
 
   const defaultWeek = weeks.find((w: any) => !byWeek.has(w.week))?.week ?? 1;
@@ -103,7 +120,7 @@ export default async function Inquiry() {
                 )))}
             </datalist>
           </div>
-          <button className="btn btn-primary">Arrive in your body →</button>
+          <SaveButton pendingLabel="Creating…">Arrive in your body →</SaveButton>
         </form>
       </div>
 
@@ -149,9 +166,26 @@ export default async function Inquiry() {
                   Not yet loaded from the syllabus
                 </p>
               )}
+              {e && e.blank > 0 && (
+                <p style={{ margin: "6px 0 0", fontSize: ".82rem", color: "var(--coral)" }}>
+                  {e.blank} of {e.n} started but not yet written
+                </p>
+              )}
               {synth.has(w.week) && (
-                <span className="pill" style={{ marginTop: 8, display: "inline-block",
-                                                color: "var(--gold)" }}>synthesis written</span>
+                <div style={{ marginTop: 8 }}>
+                  <span className="pill" style={{ display: "inline-block",
+                                                  color: "var(--gold)" }}>synthesis written</span>
+                  {synthPreview(synth.get(w.week)) && (
+                    <p style={{ margin: "6px 0 0", fontSize: ".84rem", fontStyle: "italic" }}>
+                      “{synthPreview(synth.get(w.week)).slice(0, 120)}
+                      {synthPreview(synth.get(w.week)).length > 120 ? "…" : ""}”
+                    </p>
+                  )}
+                  <p style={{ margin: "4px 0 0", fontSize: ".76rem", color: "var(--muted)" }}>
+                    saved {new Date(synth.get(w.week).updated_at).toLocaleString(undefined,
+                      { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  </p>
+                </div>
               )}
             </Link>
           );
@@ -187,7 +221,7 @@ export default async function Inquiry() {
           </div>
           <div className="field"><label htmlFor="instructor">Instructor</label>
             <input id="instructor" name="instructor" defaultValue={settings?.instructor} /></div>
-          <button className="btn btn-secondary">Save</button>
+          <SaveButton className="btn btn-secondary">Save</SaveButton>
         </form>
       </details>
     </>

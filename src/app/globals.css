@@ -84,6 +84,32 @@ a:hover { text-decoration: underline; }
 .nav a { color: #cdd8e8; font-size: .82rem; letter-spacing: .1em; text-transform: uppercase; }
 .nav a:hover { color: #fff; text-decoration: none; }
 
+/* Sign in reads as an action, not another destination in the list. */
+.nav a.nav-signin {
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 999px;
+  padding: 7px 16px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+}
+.nav a.nav-signin:hover { background: #fff; color: var(--midnight); border-color: #fff; }
+
+/* Sign out sat at #b9c6d8 on a dark ground, which read as disabled. It is a
+   real action and the only destructive one in the sidebar, so it gets a
+   visible edge and full-strength text. */
+.sidebar .signout {
+  display: block; width: 100%; text-align: left;
+  background: none; font: inherit; cursor: pointer;
+  color: #fff;
+  border: 0; border-top: 1px solid rgba(255,255,255,.14);
+  padding: 13px 24px; margin-top: 10px;
+  font-size: .9rem; font-weight: 600;
+}
+.sidebar .signout:hover { background: rgba(255,120,120,.16); color: #ffd9d9; }
+.sidebar .signout:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+
 .site-footer { background: var(--midnight); color: #aebbcd; margin-top: 96px; padding: 56px 0 40px; }
 .site-footer a { color: #cdd8e8; }
 .journey-bar { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: center;

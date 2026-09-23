@@ -112,16 +112,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* A form, not a Link. The router prefetches links in the viewport, and
             this one used to sign her out on its own while she was working. */}
         <form action="/logout" method="post" style={{ margin: 0 }}>
-          <button
-            type="submit"
-            style={{
-              background: "none", border: 0, padding: "inherit", margin: 0,
-              font: "inherit", color: "inherit", cursor: "pointer", textAlign: "left",
-              width: "100%", display: "block",
-            }}
-          >
-            Sign out
-          </button>
+          <button type="submit" className="signout">Sign out</button>
         </form>
         <p style={{ color: "#6d8099", fontSize: ".74rem", padding: "18px 24px 0", margin: 0 }}>
           {user.email}<br />

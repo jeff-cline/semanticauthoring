@@ -19,6 +19,9 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             <Link href="/pricing">Pricing</Link>
             <Link href="/about">About</Link>
             <Link href="/join">Join</Link>
+            {/* Signing in is the most common reason a returning member opens
+                the site; it was only reachable from the footer. */}
+            <Link href="/login" className="nav-signin">Sign in</Link>
           </nav>
         </div>
       </header>

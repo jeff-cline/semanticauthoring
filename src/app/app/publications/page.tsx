@@ -4,6 +4,8 @@ import { currentUser } from "@/lib/auth";
 import { q, one, logEvent } from "@/lib/db";
 import { can } from "@/lib/tiers";
 import { slugify, readingTime } from "@/lib/slug";
+import { redirect } from "next/navigation";
+import SaveButton from "@/components/SaveButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Publications" };
@@ -32,6 +34,19 @@ export default async function Publications() {
         </div>
       </>
     );
+  }
+
+  async function toggleProfile(formData: FormData) {
+    "use server";
+    const me = (await currentUser())!;
+    const id = Number(formData.get("id"));
+    // Owner in the WHERE clause — a foreign id can never flip someone else's flag.
+    await q(`UPDATE publications SET on_profile = NOT on_profile, updated_at = now()
+              WHERE id=$1 AND owner_id=$2`, [id, me.id]);
+    await logEvent("publication", "profile_toggled", { actorId: me.id, entityId: id });
+    revalidatePath("/app/publications");
+    revalidatePath("/app/profile");
+    redirect("/app/publications?saved=entry");
   }
 
   const [pubs, docs, profile] = await Promise.all([
@@ -119,9 +134,11 @@ export default async function Publications() {
       {pubs.length === 0 && <p style={{ color: "var(--muted)" }}>Nothing yet.</p>}
       <div className="grid grid-2">
         {pubs.map((p: any) => (
-          <Link key={p.id} href={`/app/publications/${p.id}`} className="card stage stage-publish"
-                style={{ textDecoration: "none", color: "inherit" }}>
-            <h3 style={{ fontSize: "1.02rem", marginBottom: 6 }}>{p.title}</h3>
+          <div key={p.id} className="card stage stage-publish">
+            <h3 style={{ fontSize: "1.02rem", marginBottom: 6 }}>
+              <Link href={`/app/publications/${p.id}`}
+                    style={{ textDecoration: "none", color: "inherit" }}>{p.title}</Link>
+            </h3>
             <span className="pill">{KINDS.find(([v]) => v === p.kind)?.[1] ?? p.kind}</span>{" "}
             <span className="pill" style={{ color: p.status === "published" ? "var(--coral)" : undefined }}>
               {p.status}
@@ -129,10 +146,19 @@ export default async function Publications() {
             <span className="pill">{p.word_count} words</span>
             {p.status === "published" && profile?.handle && (
               <p style={{ color: "var(--muted)", fontSize: ".82rem", margin: "10px 0 0" }}>
-                /s/{profile.handle}/{p.slug}
+                /{profile.handle}/{p.slug}
               </p>
             )}
-          </Link>
+            {p.status === "published" && (
+              <form action={toggleProfile} style={{ marginTop: 10 }}>
+                <input type="hidden" name="id" value={p.id} />
+                <SaveButton className={p.on_profile ? "btn btn-secondary" : "btn btn-primary"}
+                            pendingLabel="Updating…">
+                  {p.on_profile ? "On my profile — remove" : "Add to my profile"}
+                </SaveButton>
+              </form>
+            )}
+          </div>
         ))}
       </div>
     </>

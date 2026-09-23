@@ -73,7 +73,7 @@ export default async function Discover(
                   </p>
                 )}
                 <p style={{ color: "var(--muted)", fontSize: ".86rem", margin: 0 }}>
-                  <Link href={`/s/${p.handle}`}>{p.display_name || p.user_name}</Link>
+                  <Link href={`/${p.handle}`}>{p.display_name || p.user_name}</Link>
                   {` · ${p.reading_time} min read`}
                   {p.published_at && ` · ${new Date(p.published_at).toLocaleDateString()}`}
                 </p>

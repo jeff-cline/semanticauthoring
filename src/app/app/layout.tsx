@@ -75,6 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="grouplabel">Publish</div>
         <Link href="/app/profile">Public profile</Link>
+        <Link href="/app/messages">Messages</Link>
         <Link href="/app/publications">Publications</Link>
         <Link href="/app/pipeline">Publication pipeline</Link>
         <Link href="/app/deposit">Repository deposit</Link>

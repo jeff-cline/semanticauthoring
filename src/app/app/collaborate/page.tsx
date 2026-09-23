@@ -180,7 +180,7 @@ export default async function Collaborate() {
                  style={{ marginBottom: 10, maxWidth: 900 }}>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
                 <strong>
-                  <Link href={`/s/${m.o.handle}`}>{m.o.display_name || m.o.user_name}</Link>
+                  <Link href={`/${m.o.handle}`}>{m.o.display_name || m.o.user_name}</Link>
                 </strong>
                 {m.o.headline && (
                   <span style={{ color: "var(--muted)", fontSize: ".9rem" }}>{m.o.headline}</span>
@@ -212,7 +212,7 @@ export default async function Collaborate() {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
             <strong style={{ flex: "1 1 260px" }}>{r.title}</strong>
             {r.handle ? (
-              <Link href={`/s/${r.handle}`} style={{ fontSize: ".88rem" }}>{r.display_name || r.user_name}</Link>
+              <Link href={`/${r.handle}`} style={{ fontSize: ".88rem" }}>{r.display_name || r.user_name}</Link>
             ) : (
               <span style={{ color: "var(--muted)", fontSize: ".88rem" }}>{r.user_name}</span>
             )}

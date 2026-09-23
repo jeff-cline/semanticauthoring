@@ -102,7 +102,7 @@ export default async function PublicationPage(
             <nav aria-label="Breadcrumb" style={{ fontSize: ".85rem", marginBottom: 14 }}>
               <Link href="/scholars">Scholars</Link>
               <span style={{ color: "var(--muted)" }}> / </span>
-              <Link href={`/s/${p.handle}`}>{author}</Link>
+              <Link href={`/${p.handle}`}>{author}</Link>
             </nav>
 
             <p className="eyebrow">{p.kind.replace(/_/g, " ")}</p>
@@ -110,7 +110,7 @@ export default async function PublicationPage(
             {p.subtitle && <p className="lede">{p.subtitle}</p>}
 
             <p style={{ color: "var(--muted)", fontSize: ".92rem" }}>
-              By <Link href={`/s/${p.handle}`}>{author}</Link>
+              By <Link href={`/${p.handle}`}>{author}</Link>
               {p.institution && ` · ${p.institution}`}
               {p.published_at && ` · ${new Date(p.published_at).toLocaleDateString(undefined,
                 { year: "numeric", month: "long", day: "numeric" })}`}

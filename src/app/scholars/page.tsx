@@ -40,7 +40,7 @@ export default async function Scholars() {
         ) : (
           <div className="grid grid-2" style={{ marginTop: 30 }}>
             {rows.map((r: any) => (
-              <Link key={r.handle} href={`/s/${r.handle}`} className="card stage stage-connect"
+              <Link key={r.handle} href={`/${r.handle}`} className="card stage stage-connect"
                     style={{ textDecoration: "none", color: "inherit" }}>
                 <h3 style={{ fontSize: "1.05rem", marginBottom: 4 }}>
                   {r.display_name || r.user_name}

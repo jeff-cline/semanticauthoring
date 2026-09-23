@@ -1119,3 +1119,33 @@ CREATE TABLE IF NOT EXISTS saved_exports (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS saved_exports_owner_idx ON saved_exports(owner_id, created_at DESC);
+
+-- ── Public profile: avatar, rich About, and inbound contact ──────────────────
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url  TEXT NOT NULL DEFAULT '';
+-- Alt text doubles as the image's SEO description; defaults to the scholar's name.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_alt  TEXT NOT NULL DEFAULT '';
+-- Rich About Me. Sanitised on save; `bio` stays as the plain-text fallback used
+-- for meta descriptions and structured data, where markup would be wrong.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS about_html  TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS contact_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS goals       TEXT NOT NULL DEFAULT '';
+
+-- An explicit "show this on my profile" flag. Publishing and putting something
+-- on the front page are different decisions, and conflating them means she
+-- cannot publish quietly.
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS on_profile BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Messages sent from a public profile — "Contact me" and "Collaborate with me".
+CREATE TABLE IF NOT EXISTS profile_messages (
+  id          SERIAL PRIMARY KEY,
+  owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL DEFAULT 'contact',   -- contact | collaborate
+  from_name   TEXT NOT NULL DEFAULT '',
+  from_email  TEXT NOT NULL DEFAULT '',
+  subject     TEXT NOT NULL DEFAULT '',
+  body        TEXT NOT NULL DEFAULT '',
+  status      TEXT NOT NULL DEFAULT 'new',       -- new | read | archived
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS profile_messages_owner_idx
+  ON profile_messages(owner_id, created_at DESC);

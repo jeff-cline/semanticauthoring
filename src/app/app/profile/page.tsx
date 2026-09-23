@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { currentUser } from "@/lib/auth";
 import { one, q, logEvent } from "@/lib/db";
 import { slugify, handleProblem } from "@/lib/slug";
+import { sanitizeRichText } from "@/lib/sanitize";
+import AboutEditor from "@/components/AboutEditor";
+import AvatarUpload from "@/components/AvatarUpload";
+import SaveButton from "@/components/SaveButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Public profile" };
@@ -42,18 +46,28 @@ export default async function ProfilePage(
       String(formData.get("social") ?? "").slice(0, 600),
       formData.get("is_public") === "on",
       formData.get("show_timeline") === "on",
+      String(formData.get("goals") ?? "").slice(0, 4000),
+      // Sanitised, never trusted: this is rendered as HTML on a public page.
+      sanitizeRichText(String(formData.get("about_html") ?? "")),
+      String(formData.get("avatar_url") ?? "").slice(0, 600),
+      String(formData.get("avatar_alt") ?? "").slice(0, 300),
+      formData.get("contact_enabled") === "on",
     ];
 
     await q(
       `INSERT INTO profiles (user_id, handle, display_name, headline, bio, institution, program,
-                             degree, interests, orcid, website, social, is_public, show_timeline)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                             degree, interests, orcid, website, social, is_public, show_timeline,
+                             goals, about_html, avatar_url, avatar_alt, contact_enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        ON CONFLICT (user_id) DO UPDATE SET
          handle=EXCLUDED.handle, display_name=EXCLUDED.display_name, headline=EXCLUDED.headline,
          bio=EXCLUDED.bio, institution=EXCLUDED.institution, program=EXCLUDED.program,
          degree=EXCLUDED.degree, interests=EXCLUDED.interests, orcid=EXCLUDED.orcid,
          website=EXCLUDED.website, social=EXCLUDED.social, is_public=EXCLUDED.is_public,
-         show_timeline=EXCLUDED.show_timeline, updated_at=now()`,
+         show_timeline=EXCLUDED.show_timeline, goals=EXCLUDED.goals,
+         about_html=EXCLUDED.about_html, avatar_url=EXCLUDED.avatar_url,
+         avatar_alt=EXCLUDED.avatar_alt, contact_enabled=EXCLUDED.contact_enabled,
+         updated_at=now()`,
       [me.id, ...vals]);
 
     await logEvent("profile", "saved", { actorId: me.id, entityId: me.id });
@@ -84,7 +98,7 @@ export default async function ProfilePage(
         <div className="card stage stage-publish" style={{ margin: "20px 0" }}>
           <p style={{ margin: 0 }}>
             Live at{" "}
-            <Link href={`/s/${profile.handle}`}>semanticauthoring.org/s/{profile.handle}</Link>
+            <Link href={`/${profile.handle}`}>semanticauthoring.org/{profile.handle}</Link>
             {" · "}
             <span style={{ color: "var(--muted)" }}>
               {pubCount?.n ?? 0} published piece{Number(pubCount?.n ?? 0) === 1 ? "" : "s"}
@@ -113,14 +127,32 @@ export default async function ProfilePage(
                    placeholder="PhD candidate" />
           </div>
         </div>
+        <AvatarUpload
+          defaultUrl={profile?.avatar_url ?? ""}
+          defaultAlt={profile?.avatar_alt ?? ""}
+          suggestedAlt={profile?.display_name || user.name || "Scholar"}
+        />
+
         <div className="field">
           <label htmlFor="headline">Headline</label>
           <input id="headline" name="headline" defaultValue={profile?.headline ?? ""}
                  placeholder="Researching embodied cognition in adult learning" />
         </div>
         <div className="field">
-          <label htmlFor="bio">Biography</label>
-          <textarea id="bio" name="bio" rows={5} defaultValue={profile?.bio ?? ""} />
+          <label htmlFor="bio">Short biography</label>
+          <textarea id="bio" name="bio" rows={3} defaultValue={profile?.bio ?? ""} />
+          <p style={{ color: "var(--muted)", fontSize: ".82rem", margin: "6px 0 0" }}>
+            Plain text. Used for search results and link previews, where formatting cannot
+            be shown. Keep it to a sentence or two.
+          </p>
+        </div>
+
+        <AboutEditor name="about_html" defaultValue={profile?.about_html ?? ""} />
+
+        <div className="field">
+          <label htmlFor="goals">What I am working toward</label>
+          <textarea id="goals" name="goals" rows={3} defaultValue={profile?.goals ?? ""}
+                    placeholder="The question driving the work, and where it is going." />
         </div>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
           <div className="field" style={{ flex: "1 1 220px" }}>
@@ -168,6 +200,19 @@ export default async function ProfilePage(
               </span>
             </span>
           </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontWeight: 400,
+                          marginBottom: 10 }}>
+            <input type="checkbox" name="contact_enabled"
+                   defaultChecked={profile?.contact_enabled !== false}
+                   style={{ width: "auto", marginTop: 4 }} />
+            <span>Let people contact me from my profile<br />
+              <span style={{ color: "var(--muted)", fontSize: ".88rem" }}>
+                Adds a Contact button. Messages arrive in{" "}
+                <Link href="/app/messages">Messages</Link> and by email. Your address is
+                never shown.
+              </span>
+            </span>
+          </label>
           <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontWeight: 400 }}>
             <input type="checkbox" name="show_timeline" defaultChecked={profile?.show_timeline}
                    style={{ width: "auto", marginTop: 4 }} />
@@ -179,7 +224,7 @@ export default async function ProfilePage(
           </label>
         </fieldset>
 
-        <button className="btn btn-primary">Save profile</button>
+        <SaveButton>Save profile</SaveButton>
       </form>
     </>
   );

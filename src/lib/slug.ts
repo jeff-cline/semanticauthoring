@@ -10,11 +10,24 @@ export function slugify(input: string, fallback = "untitled"): string {
 }
 
 /** Reserved so a handle can never shadow a real route. */
+// Handles live at the site root (semanticauthoring.org/first-last), so a
+// handle must never collide with a real top-level page. Next resolves static
+// segments first, which means a colliding handle is not a security problem —
+// it is simply unreachable, which is worse to discover after you have printed
+// it on a CV. Every real route at src/app/* belongs in this list.
 export const RESERVED = new Set([
-  "app", "api", "login", "logout", "join", "about", "mission", "pricing", "privacy",
-  "terms", "answers", "search", "scholars", "discover", "s", "review", "testimonial",
-  "subscribed", "change-password", "sitemap.xml", "robots.txt", "llms.txt", "icon.svg",
-  "admin", "settings", "help", "support", "new", "edit", "null", "undefined",
+  // real top-level routes
+  "about", "advising", "answers", "api", "app", "change-password", "discover",
+  "feed.xml", "forgot", "join", "journey", "login", "logout", "mission",
+  "offline", "peer-review", "pricing", "privacy", "reset", "review", "s",
+  "scholars", "search", "sso", "subscribed", "terms", "testimonial",
+  "unsubscribe", "sitemap.xml", "robots.txt", "llms.txt", "icon.svg",
+  "manifest.webmanifest", "opengraph-image",
+  // kept clear for future use and for the obvious impostor cases
+  "admin", "settings", "help", "support", "new", "edit", "account", "profile",
+  "dashboard", "signup", "signin", "sign-in", "sign-up", "auth", "static",
+  "public", "assets", "images", "img", "css", "js", "_next",
+  "null", "undefined", "true", "false",
 ]);
 
 export function handleProblem(h: string): string | null {

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentUser, hashPassword, verifyPassword, passwordProblem } from "@/lib/auth";
+import { MIN_PASSWORD } from "@/lib/password-policy";
 import { q, one, logEvent } from "@/lib/db";
 import { Mark } from "@/components/Brand";
 
@@ -44,7 +45,7 @@ export default async function ChangePassword(
   const messages: Record<string, string> = {
     current: "Your current password wasn't correct.",
     match: "The two new passwords didn't match.",
-    weak: "Use at least 12 characters with upper case, lower case, and a number.",
+    weak: `Use at least ${MIN_PASSWORD} characters with upper case, lower case, and a number.`,
     same: "Your new password must be different from the current one.",
   };
 
@@ -70,7 +71,7 @@ export default async function ChangePassword(
         <label htmlFor="next">New password</label>
         <input id="next" name="next" type="password" required autoComplete="new-password" />
         <p style={{ color: "var(--muted)", fontSize: ".84rem", margin: "6px 0 0" }}>
-          At least 12 characters, with upper case, lower case, and a number.
+          {`At least ${MIN_PASSWORD} characters, with upper case, lower case, and a number.`}
         </p>
       </div>
       <div className="field">

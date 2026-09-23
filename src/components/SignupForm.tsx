@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { TIERS } from "@/lib/tiers";
+import { MIN_PASSWORD } from "@/lib/password-policy";
 
 export default function SignupForm({ action }: { action: (fd: FormData) => Promise<void> }) {
   const [tier, setTier] = useState("free");
@@ -43,9 +44,9 @@ export default function SignupForm({ action }: { action: (fd: FormData) => Promi
       <div className="field">
         <label htmlFor="password">Choose a password</label>
         <input id="password" name="password" type="password" required
-               autoComplete="new-password" minLength={12} />
+               autoComplete="new-password" minLength={MIN_PASSWORD} />
         <p style={{ color: "var(--muted)", fontSize: ".84rem", margin: "6px 0 0" }}>
-          At least 12 characters, with upper case, lower case, and a number.
+          {`At least ${MIN_PASSWORD} characters, with upper case, lower case, and a number.`}
         </p>
       </div>
       <div className="field">

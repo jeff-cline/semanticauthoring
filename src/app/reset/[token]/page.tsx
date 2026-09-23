@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createHash } from "node:crypto";
 import { one, q, logEvent } from "@/lib/db";
 import { hashPassword, passwordProblem, createSession } from "@/lib/auth";
+import { MIN_PASSWORD } from "@/lib/password-policy";
 import { Mark } from "@/components/Brand";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ export default async function Reset(
 
   const messages: Record<string, string> = {
     match: "The two passwords didn't match.",
-    weak: "Use at least 12 characters with upper case, lower case, and a number.",
+    weak: `Use at least ${MIN_PASSWORD} characters with upper case, lower case, and a number.`,
     expired: "That link has expired or was already used.",
   };
 
@@ -84,7 +85,7 @@ export default async function Reset(
               <label htmlFor="next">New password</label>
               <input id="next" name="next" type="password" required autoComplete="new-password" />
               <p style={{ color: "var(--muted)", fontSize: ".84rem", margin: "6px 0 0" }}>
-                At least 12 characters, with upper case, lower case, and a number.
+                {`At least ${MIN_PASSWORD} characters, with upper case, lower case, and a number.`}
               </p>
             </div>
             <div className="field">

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { PublicShell } from "@/components/Chrome";
 import SignupForm from "@/components/SignupForm";
 import { hashPassword, passwordProblem, createSession, currentUser } from "@/lib/auth";
+import { MIN_PASSWORD } from "@/lib/password-policy";
 import { one, q, logEvent } from "@/lib/db";
 import { welcomeEmail } from "@/lib/email";
 import { coreLead } from "@/lib/core";
@@ -60,7 +61,7 @@ export default async function Join(
 
   const messages: Record<string, string> = {
     exists: "An account with that email already exists — try signing in instead.",
-    password: "Use at least 12 characters, with upper case, lower case, and a number.",
+    password: `Use at least ${MIN_PASSWORD} characters, with upper case, lower case, and a number.`,
     details: "Please check your name and email.",
     unknown: "Something went wrong. Please try again.",
   };

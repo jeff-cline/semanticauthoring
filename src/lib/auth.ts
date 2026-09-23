@@ -2,6 +2,8 @@ import "server-only";
 import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
+import { MIN_PASSWORD } from "./password-policy";
+export { MIN_PASSWORD };
 import { redirect } from "next/navigation";
 import { q, one, logEvent } from "./db";
 
@@ -44,7 +46,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
 }
 
 export function passwordProblem(pw: string): string | null {
-  if (pw.length < 12) return "Password must be at least 12 characters.";
+  if (pw.length < MIN_PASSWORD) return `Password must be at least ${MIN_PASSWORD} characters.`;
   if (!/[a-z]/.test(pw)) return "Include at least one lowercase letter.";
   if (!/[A-Z]/.test(pw)) return "Include at least one uppercase letter.";
   if (!/[0-9]/.test(pw)) return "Include at least one number.";

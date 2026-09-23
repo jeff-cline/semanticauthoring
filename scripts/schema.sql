@@ -1173,3 +1173,34 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS og_image         TEXT NOT NULL DEF
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS seo_keywords     TEXT NOT NULL DEFAULT '';
 -- Let a scholar keep a public page out of search results without hiding it.
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS allow_indexing   BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- ── Cohort access to published work ─────────────────────────────────────────
+-- How much of a piece an approved reader gets. Set per document, by the author,
+-- from their dashboard.
+--   public   — anyone reads the full text, no account needed
+--   full     — approved readers read the full text
+--   abstract — everyone sees the abstract; full text needs approval
+ALTER TABLE publications
+  ADD COLUMN IF NOT EXISTS reader_access TEXT NOT NULL DEFAULT 'public';
+
+-- One row per (document, reader). Requests and invitations share the table
+-- because they are the same relationship arrived at from opposite directions.
+CREATE TABLE IF NOT EXISTS document_access (
+  id             SERIAL PRIMARY KEY,
+  publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+  -- The author, denormalised: every read-path check filters on it, and joining
+  -- to publications on each one would be a join purely to answer "is this mine".
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reader_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- pending | approved | declined | revoked
+  status         TEXT NOT NULL DEFAULT 'pending',
+  -- invited by the author, or requested by the reader
+  origin         TEXT NOT NULL DEFAULT 'request',
+  message        TEXT NOT NULL DEFAULT '',
+  decided_at     TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (publication_id, reader_id)
+);
+CREATE INDEX IF NOT EXISTS document_access_owner_idx  ON document_access(owner_id, status);
+CREATE INDEX IF NOT EXISTS document_access_reader_idx ON document_access(reader_id, status);

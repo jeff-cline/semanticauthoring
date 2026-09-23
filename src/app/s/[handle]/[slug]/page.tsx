@@ -5,6 +5,9 @@ import { PublicShell } from "@/components/Chrome";
 import SubscribeForm from "@/components/SubscribeForm";
 import ShareRow from "@/components/ShareRow";
 import { q, one } from "@/lib/db";
+import { currentUser } from "@/lib/auth";
+import { accessFor, cohortFor } from "@/lib/access";
+import RequestAccess from "@/components/RequestAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +54,12 @@ export default async function PublicationPage(
 
   const author = p.display_name || p.user_name;
   const url = `${SITE}/s/${p.handle}/${p.slug}`;
+
+  // One module decides who reads the body; this page only renders the verdict.
+  const viewer = await currentUser().catch(() => null);
+  const access = await accessFor(p, viewer?.id ?? null);
+  const cohort = access.canReadFull && access.policy !== "public"
+    ? await cohortFor(p.id) : [];
 
   const related = await q<any>(
     `SELECT slug, title, abstract FROM publications
@@ -133,10 +142,43 @@ export default async function PublicationPage(
               </p>
             )}
 
-            <div style={{ fontFamily: "var(--serif)", fontSize: "1.1rem", lineHeight: 1.85,
-                          whiteSpace: "pre-wrap", margin: "30px 0" }}>
-              {p.body}
-            </div>
+            {access.canReadFull ? (
+              <div style={{ fontFamily: "var(--serif)", fontSize: "1.1rem", lineHeight: 1.85,
+                            whiteSpace: "pre-wrap", margin: "30px 0" }}>
+                {p.body}
+              </div>
+            ) : (
+              <RequestAccess
+                publicationId={p.id}
+                title={p.title}
+                author={author}
+                signedIn={!!viewer}
+                status={access.status}
+              />
+            )}
+
+            {cohort.length > 0 && (
+              <div className="card" style={{ margin: "30px 0" }}>
+                <p className="eyebrow" style={{ marginBottom: 8 }}>
+                  Reading this with you ({cohort.length})
+                </p>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  {cohort.map((c: any) => (
+                    <span key={c.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {c.avatar_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.avatar_url} alt="" width={28} height={28}
+                             style={{ width: 28, height: 28, borderRadius: "50%",
+                                      objectFit: "cover" }} />
+                      )}
+                      {c.handle
+                        ? <Link href={`/${c.handle}`}>{c.display_name || c.name}</Link>
+                        : <span>{c.display_name || c.name}</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {p.tags && (
               <p style={{ margin: "24px 0" }}>

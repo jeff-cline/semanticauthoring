@@ -6,6 +6,7 @@ import { q, one, logEvent } from "@/lib/db";
 import { can } from "@/lib/tiers";
 import { slugify, readingTime } from "@/lib/slug";
 import { publishedEmail } from "@/lib/email";
+import CohortManager from "@/components/CohortManager";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit publication" };
@@ -22,6 +23,17 @@ export default async function EditPublication({ params }: { params: Promise<{ id
   const profile = await one<any>(`SELECT handle, is_public FROM profiles WHERE user_id=$1`, [user.id]);
   const subs = await one<{ n: string }>(
     `SELECT count(*) n FROM subscribers WHERE scholar_id=$1 AND status='confirmed'`, [user.id]);
+
+  const accessRows = await q<any>(
+    `SELECT da.id, da.reader_id, da.status, da.origin, da.message,
+            u.name, u.email, pr.handle, pr.avatar_url
+       FROM document_access da
+       JOIN users u ON u.id = da.reader_id
+       LEFT JOIN profiles pr ON pr.user_id = u.id
+      WHERE da.publication_id = $1 AND da.owner_id = $2
+      ORDER BY CASE da.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END,
+               da.created_at`,
+    [Number(id), user.id]).catch(() => []);
 
   async function save(formData: FormData) {
     "use server";
@@ -186,6 +198,14 @@ export default async function EditPublication({ params }: { params: Promise<{ id
           {pub.word_count} words · about {pub.reading_time} min read
         </span>
       </form>
+
+      {pub.status === "published" && (
+        <CohortManager
+          publicationId={pub.id}
+          policy={pub.reader_access ?? "public"}
+          rows={accessRows as any}
+        />
+      )}
     </>
   );
 }

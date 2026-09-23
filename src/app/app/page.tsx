@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { currentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { one } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ async function count(sql: string, params: unknown[] = []) {
 }
 
 export default async function Dashboard() {
-  const user = (await currentUser())!;
+  const user = await requireUser();
   const god = user.role === "god";
 
   const [questions, sources, unread, annotations, docs, inbox, milestones, pending, leads] =

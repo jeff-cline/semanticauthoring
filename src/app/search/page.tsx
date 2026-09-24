@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PublicShell } from "@/components/Chrome";
-import { searchPublications, searchByAuthorOrKeyword, type Hit } from "@/lib/search";
+import { searchByAuthorOrKeyword, type Hit } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -12,16 +12,14 @@ export const metadata = {
 export default async function Search(
   { searchParams }: { searchParams: Promise<{ q?: string; author?: string }> },
 ) {
+  // `author` is still accepted so older links and bookmarks keep working —
+  // it now means the same thing as `q`.
   const { q: keyword, author } = await searchParams;
   const term = (keyword ?? author ?? "").trim();
-  const mode = author !== undefined && author !== "" ? "author" : "keyword";
 
-  let hits: Hit[] = [];
-  if (term) {
-    hits = mode === "author"
-      ? await searchByAuthorOrKeyword(term)
-      : await searchPublications(term);
-  }
+  // Always the broader search. It matches keywords, authors, and both at once,
+  // which is what people actually type.
+  const hits: Hit[] = term ? await searchByAuthorOrKeyword(term) : [];
 
   const scholars = hits.filter((h) => h.kind === "scholar");
   const works = hits.filter((h) => h.kind === "publication");
@@ -36,26 +34,17 @@ export default async function Search(
           annotations, journals, and drafts are never searchable.
         </p>
 
-        <div style={{ display: "grid", gap: 14,
-                      gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
-                      margin: "26px 0 34px" }}>
-          <form action="/search" method="get" role="search">
-            <label htmlFor="q">Search for keyword</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input id="q" name="q" defaultValue={mode === "keyword" ? term : ""}
-                     placeholder="embodiment, methodology…" />
-              <button className="btn btn-primary" style={{ padding: "12px 16px" }}>Go</button>
-            </div>
-          </form>
-          <form action="/search" method="get" role="search">
-            <label htmlFor="author">Keyword or author</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input id="author" name="author" defaultValue={mode === "author" ? term : ""}
-                     placeholder="a name, or a topic…" />
-              <button className="btn btn-secondary" style={{ padding: "12px 16px" }}>Go</button>
-            </div>
-          </form>
-        </div>
+        <form action="/search" method="get" role="search"
+              style={{ margin: "26px 0 34px", maxWidth: 560 }}>
+          <label htmlFor="q">Search for keyword or author or keyword + author</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input id="q" name="q" defaultValue={term}
+                   placeholder="Search for keyword or author or keyword + author"
+                   style={{ flex: 1, minWidth: 0 }} />
+            <button className="btn btn-primary"
+                    style={{ padding: "12px 20px", flexShrink: 0 }}>Go</button>
+          </div>
+        </form>
 
         {!term && (
           <p style={{ color: "var(--muted)" }}>

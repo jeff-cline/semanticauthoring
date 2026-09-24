@@ -125,6 +125,19 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
               ideas to matter.
             </span>
           </div>
+
+          <div style={{ borderTop: "1px solid #24344c", marginTop: 22, paddingTop: 20,
+                        fontSize: ".88rem", lineHeight: 1.7 }}>
+            <p style={{ margin: 0 }}>
+              <span aria-hidden="true" style={{ marginInlineEnd: 6 }}>🚀</span>
+              Proudly built by{" "}
+              <a href="https://r0cketship.com" target="_blank" rel="noopener noreferrer"
+                 style={{ color: "#fff", fontWeight: 600 }}>
+                R0cketShip
+              </a>
+              {" "}— and the help of all of our scholars and collaborators!
+            </p>
+          </div>
         </div>
       </footer>
       <Consent />

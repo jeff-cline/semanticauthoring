@@ -73,6 +73,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                 <li><Link href="/pricing" style={{ fontSize: ".92rem" }}>Pricing</Link></li>
                 <li><Link href="/about" style={{ fontSize: ".92rem" }}>About</Link></li>
                 <li><Link href="/join" style={{ fontSize: ".92rem" }}>Request early access</Link></li>
+                <li><Link href="/authors" style={{ fontSize: ".92rem" }}>Semantic Authors</Link></li>
                 <li><Link href="/login" style={{ fontSize: ".92rem" }}>Sign in</Link></li>
               </ul>
             </div>

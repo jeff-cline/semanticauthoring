@@ -16,13 +16,26 @@ export const dynamic = "force-dynamic";
 // A GET must never change state. Anything can issue one — a prefetcher, a
 // link scanner, antivirus, a browser preloading what it thinks you'll click.
 
-export async function POST(req: Request) {
+/**
+ * Redirect to a path on this site.
+ *
+ * Deliberately a RELATIVE Location header. `new URL(path, req.url)` looked
+ * right and was not: behind nginx, Next rebuilds req.url from the socket it is
+ * listening on, so signing out sent people to http://127.0.0.1:3100/. A
+ * relative Location is resolved by the browser against the address it actually
+ * asked for, which is the public one — no host reconstruction, nothing to get
+ * wrong, and no dependence on SITE_URL being set correctly.
+ */
+const seeOther = (path: string) =>
+  new NextResponse(null, { status: 303, headers: { location: path } });
+
+export async function POST() {
   await destroySession().catch(() => {});
-  return NextResponse.redirect(new URL("/", req.url), { status: 303 });
+  return seeOther("/");
 }
 
 // Kept for anyone who has bookmarked /logout. It does NOT sign them out —
 // it sends them somewhere they can press the button.
-export async function GET(req: Request) {
-  return NextResponse.redirect(new URL("/app", req.url), { status: 303 });
+export function GET() {
+  return seeOther("/app");
 }

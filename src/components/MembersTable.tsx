@@ -100,10 +100,12 @@ export default function MembersTable({ rows, meId }: { rows: Row[]; meId: number
                       style={{ minHeight: 40 }}>
                   Manage
                 </Link>
-                {!isMe && r.role !== "god" && (
+                {!isMe && (
                   <button className="btn btn-primary" style={{ minHeight: 40 }}
                           disabled={busy === r.id} onClick={() => viewAs(r.id)}>
-                    {busy === r.id ? <><Spinner /> Switching…</> : "View as"}
+                    {busy === r.id
+                      ? <><Spinner /> Switching…</>
+                      : r.role === "god" ? "View as (God)" : "View as"}
                   </button>
                 )}
               </div>

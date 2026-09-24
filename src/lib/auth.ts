@@ -133,9 +133,12 @@ export async function currentUser(): Promise<SessionUser | null> {
  * Begin viewing as another member.
  *
  * Repoints the caller's existing session and remembers who they really are.
- * Refuses to target another God account: "view as" is for support, and one
- * administrator quietly wearing another's identity is not something an audit
- * log can untangle afterwards.
+ *
+ * Viewing as another God is allowed. It is not an escalation — the caller
+ * already holds every privilege the target does — so the only real question is
+ * accountability, and that is answered by the audit entry and by a banner the
+ * impersonator cannot dismiss. Blocking it would stop an owner supporting the
+ * one other administrator on their own platform.
  */
 export async function startImpersonation(godId: number, targetId: number):
   Promise<{ ok: true } | { ok: false; error: string }> {
@@ -147,9 +150,6 @@ export async function startImpersonation(godId: number, targetId: number):
 
   const target = await one<any>(`SELECT id, role FROM users WHERE id=$1`, [targetId]);
   if (!target) return { ok: false, error: "No such member." };
-  if (target.role === "god") {
-    return { ok: false, error: "You cannot view as another God account." };
-  }
 
   // Only from a session that is not already impersonating, and only by the
   // God who owns it — the WHERE clause is the authorisation.
@@ -161,8 +161,10 @@ export async function startImpersonation(godId: number, targetId: number):
   );
   if (!done) return { ok: false, error: "Could not start. Try signing in again." };
 
+  // Record the target's role: viewing as another administrator is the entry
+  // anyone reviewing this log will want to find.
   await logEvent("user", "impersonate_start",
-    { actorId: godId, entityId: String(targetId) });
+    { actorId: godId, entityId: String(targetId), detail: `as ${target.role}` });
   return { ok: true };
 }
 

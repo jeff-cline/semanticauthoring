@@ -1204,3 +1204,12 @@ CREATE TABLE IF NOT EXISTS document_access (
 );
 CREATE INDEX IF NOT EXISTS document_access_owner_idx  ON document_access(owner_id, status);
 CREATE INDEX IF NOT EXISTS document_access_reader_idx ON document_access(reader_id, status);
+
+-- ── Impersonation ("view as") ───────────────────────────────────────────────
+-- When a God account views as a member, the SAME session row is repointed at
+-- that member and this records who is really behind it. No second cookie and
+-- no second session: one row is the truth about who is signed in, and ending
+-- impersonation is a single update rather than a cookie swap that could fail
+-- half way and leave someone stranded in another person's account.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS impersonator_id INTEGER
+  REFERENCES users(id) ON DELETE SET NULL;

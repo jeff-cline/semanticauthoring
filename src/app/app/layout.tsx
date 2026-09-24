@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import SavedNotice from "@/components/SavedNotice";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { Mark } from "@/components/Brand";
 import CommandPalette from "@/components/CommandPalette";
 import { unreadCount } from "@/lib/notify";
@@ -23,7 +24,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const unread = await unreadCount(user.id).catch(() => 0);
 
   return (
-    <div className="app">
+    <>
+      {/* Outside .app on purpose: that is a two-column grid, and a child of it
+          would be placed in the sidebar column rather than spanning. */}
+      {user.impersonatedBy && (
+        <ImpersonationBanner
+          memberName={user.name || ""}
+          memberEmail={user.email}
+          godName={user.impersonatedBy.name || user.impersonatedBy.email}
+        />
+      )}
+      <div className="app">
       {/* Confirms a save landed. useSearchParams needs a boundary. */}
       <Suspense fallback={null}>
         <SavedNotice />
@@ -96,6 +107,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {god && (
           <>
             <div className="grouplabel">Administration</div>
+            <Link href="/app/members">Members</Link>
             <Link href="/app/leads">Leads CRM</Link>
             <Link href="/app/integrations">Integrations</Link>
             <Link href="/app/institutions">Institutions</Link>
@@ -122,6 +134,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </p>
       </nav>
       <div className="main">{children}</div>
-    </div>
+      </div>
+    </>
   );
 }

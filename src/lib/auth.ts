@@ -58,6 +58,8 @@ export function passwordProblem(pw: string): string | null {
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 export interface SessionUser {
+  /** Set only while a God account is viewing as this member. */
+  impersonatedBy?: { id: number; name: string; email: string } | null;
   id: number;
   email: string;
   name: string;
@@ -90,8 +92,13 @@ export async function currentUser(): Promise<SessionUser | null> {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const row = await one<any>(
-    `SELECT u.id, u.email, u.name, u.role, u.tier, u.must_change_password
-       FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.email, u.name, u.role, u.tier, u.must_change_password,
+            s.impersonator_id,
+            imp.name  AS imp_name,
+            imp.email AS imp_email
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       LEFT JOIN users imp ON imp.id = s.impersonator_id
       WHERE s.token_hash = $1 AND s.expires_at > now()`,
     [sha(token)],
   );
@@ -116,7 +123,69 @@ export async function currentUser(): Promise<SessionUser | null> {
     role: row.role,
     tier: row.tier,
     mustChangePassword: row.must_change_password,
+    impersonatedBy: row.impersonator_id
+      ? { id: row.impersonator_id, name: row.imp_name, email: row.imp_email }
+      : null,
   };
+}
+
+/**
+ * Begin viewing as another member.
+ *
+ * Repoints the caller's existing session and remembers who they really are.
+ * Refuses to target another God account: "view as" is for support, and one
+ * administrator quietly wearing another's identity is not something an audit
+ * log can untangle afterwards.
+ */
+export async function startImpersonation(godId: number, targetId: number):
+  Promise<{ ok: true } | { ok: false; error: string }> {
+  if (godId === targetId) return { ok: false, error: "That is your own account." };
+
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (!token) return { ok: false, error: "No active session." };
+
+  const target = await one<any>(`SELECT id, role FROM users WHERE id=$1`, [targetId]);
+  if (!target) return { ok: false, error: "No such member." };
+  if (target.role === "god") {
+    return { ok: false, error: "You cannot view as another God account." };
+  }
+
+  // Only from a session that is not already impersonating, and only by the
+  // God who owns it — the WHERE clause is the authorisation.
+  const done = await one<{ id: number }>(
+    `UPDATE sessions SET user_id=$1, impersonator_id=$2, updated_at=now()
+      WHERE token_hash=$3 AND user_id=$2 AND impersonator_id IS NULL
+      RETURNING id`,
+    [targetId, godId, sha(token)],
+  );
+  if (!done) return { ok: false, error: "Could not start. Try signing in again." };
+
+  await logEvent("user", "impersonate_start",
+    { actorId: godId, entityId: String(targetId) });
+  return { ok: true };
+}
+
+/** Return to your own account. Always available while impersonating. */
+export async function stopImpersonation(): Promise<boolean> {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (!token) return false;
+
+  // Authorisation is the presence of impersonator_id on this very session —
+  // never a role check, so a God can always get back out even if the member
+  // they are viewing as has no privileges at all.
+  const row = await one<{ impersonator_id: number; user_id: number }>(
+    `UPDATE sessions SET user_id = impersonator_id, impersonator_id = NULL,
+            updated_at = now()
+      WHERE token_hash=$1 AND impersonator_id IS NOT NULL
+      RETURNING impersonator_id, user_id`,
+    [sha(token)],
+  ).catch(() => null);
+  if (!row) return false;
+
+  await logEvent("user", "impersonate_stop", { actorId: row.impersonator_id });
+  return true;
 }
 
 /**
@@ -158,7 +227,9 @@ export async function login(email: string, password: string): Promise<SessionUse
     role: row.role,
     tier: row.tier,
     mustChangePassword: row.must_change_password,
+    impersonatedBy: null,
   };
 }
+
 
 export const isGod = (u: SessionUser | null) => u?.role === "god";

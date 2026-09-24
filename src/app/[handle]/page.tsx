@@ -7,7 +7,14 @@ import ProfileContact from "@/components/ProfileContact";
 import { q, one } from "@/lib/db";
 import { stripTags } from "@/lib/sanitize";
 
-export const dynamic = "force-dynamic";
+// Deliberately NOT force-dynamic.
+//
+// force-dynamic makes Next stream the response, which flushes the HTML shell
+// before the page body resolves — so a notFound() thrown here arrived after
+// the shell had already gone out, and the 404 content only reached the
+// browser in the client payload. A mistyped handle then looked like a blank
+// page until JavaScript ran. revalidate = 0 keeps it uncached without
+// switching on streaming.
 export const revalidate = 0;
 
 const SITE = process.env.SITE_URL ?? "https://semanticauthoring.org";
